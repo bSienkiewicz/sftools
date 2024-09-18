@@ -43,9 +43,9 @@ function initialSetup() {
         title: "Severities",
         id: uuidv4(),
         messages: [
-          { title: "Severity 3", message: createMessage(3), id: uuidv4() },
-          { title: "Severity 2", message: createMessage(2), id: uuidv4() },
-          { title: "Severity 1", message: createMessage(1), id: uuidv4() },
+          { title: "Severity 3", message: createMessage(3), id: uuidv4(), position: 0 },
+          { title: "Severity 2", message: createMessage(2), id: uuidv4(), posiiton: 1 },
+          { title: "Severity 1", message: createMessage(1), id: uuidv4(), position: 2 },
         ],
       },
       // Additional categories can be added here

@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./nest_buttons.css";
 import ContentBody from "./ContentBody";
+import { Toaster } from "react-hot-toast";
 
 // Function to observe DOM changes
 const observeDOM = (callback) => {
@@ -27,10 +28,11 @@ const checkForElementAndRender = () => {
   if (targetElement && !document.querySelector('#crx-root')) {
     const root = document.createElement("div");
     root.id = "crx-root";
-    targetElement.appendChild(root); // Append React component to target element
+    targetElement.appendChild(root);
 
     ReactDOM.createRoot(root).render(
       <React.StrictMode>
+        <Toaster position="bottom-right" />
         <ContentBody />
       </React.StrictMode>
     );
