@@ -12,10 +12,6 @@ const ContentBody = () => {
       setCopiedItemId(itemId);
       toast.success(`Copied ${title} to clipboard`, {
         duration: 3000,
-        style: {
-          background: "#333",
-          color: "#fff",
-        }
       });
     });
   }, []);
@@ -27,10 +23,6 @@ const ContentBody = () => {
       toast.success("Button messages updated", {
         duration: 3000,
         icon: '📝',
-        style: {
-          background: "#333",
-          color: "#fff",
-        },
         id: "updated-messages"
       });
     }

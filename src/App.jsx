@@ -1,7 +1,16 @@
 import React from "react";
 import "./App.css";
 import { v4 as uuidv4 } from "uuid";
-import { Check, ChevronRight, Copy, Edit, Plus, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronRight,
+  Copy,
+  Edit,
+  FileDown,
+  Import,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import EditMessageModal from "./EditMessageModal";
 
 function App() {
@@ -108,9 +117,43 @@ function App() {
     setEditingMessage(null);
   };
 
+  const handleExport = () => {
+    const jsonString = JSON.stringify(messages);
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const now = new Date().toISOString().replace(/T|Z/g, "_").slice(0, -5);
+
+    a.href = url;
+    a.download = `nest_import_${now}.json`;
+    a.click();
+  };
+
+  const handleImport = () => {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".json";
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const jsonData = JSON.parse(e.target.result);
+        setMessages(jsonData);
+        chrome.storage.local.set({ button_messages: jsonData });
+      };
+      reader.readAsText(file);
+    };
+    fileInput.click();
+  };
+
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
-      <h1 className="text-3xl font-bold text-center p-4">Parrot</h1>
+      <h1 className="text-3xl font-bold text-center p-6 shadow">Parrot</h1>
+      <div className="absolute top-0 right-0 p-2 w-full flex gap-2 items-center text-[8px] text-gray-400">
+        <button onClick={handleImport}>Import</button>
+        <span>/</span>
+        <button onClick={handleExport}>Export</button>
+      </div>
 
       {/* Flexible container for the message list */}
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
@@ -172,7 +215,9 @@ function App() {
           messageId={editingMessage.messageId}
           onSave={saveEditedMessage}
           onClose={() => setEditingMessage(null)}
-          onDelete={() => deleteMessage(editingMessage.categoryId, editingMessage.messageId)}
+          onDelete={() =>
+            deleteMessage(editingMessage.categoryId, editingMessage.messageId)
+          }
         />
       )}
     </div>

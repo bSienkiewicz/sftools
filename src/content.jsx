@@ -13,7 +13,6 @@ const observeDOM = (callback) => {
       }
     }
   });
-
   observer.observe(document.body, {
     childList: true,
     subtree: true,
@@ -21,23 +20,54 @@ const observeDOM = (callback) => {
   });
 };
 
-// Function to check for the presence of the target element
-const checkForElementAndRender = () => {
-  const targetElement = document.querySelector('[data-aura-class="forceDetailPanelDesktop"]');
-  
-  if (targetElement && !document.querySelector('#crx-root')) {
-    const root = document.createElement("div");
-    root.id = "crx-root";
-    targetElement.appendChild(root);
+// Function to check for the presence of target elements and render
+const checkForElementsAndRender = () => {
+  const targetElements = document.querySelectorAll(
+    '[data-aura-class="forceDetailPanelDesktop"]'
+  );
 
-    ReactDOM.createRoot(root).render(
+  targetElements.forEach((targetElement) => {
+    // Check if this target element already has our component
+    if (!targetElement.querySelector(".crx-root")) {
+      const root = document.createElement("div");
+      root.className = "crx-root";
+      targetElement.appendChild(root);
+
+      ReactDOM.createRoot(root).render(
+        <React.StrictMode>
+          <ContentBody />
+        </React.StrictMode>
+      );
+    }
+  });
+};
+
+// Render Toaster separately, only once
+const renderToaster = () => {
+  if (!document.getElementById("crx-toaster")) {
+    const toasterRoot = document.createElement("div");
+    toasterRoot.id = "crx-toaster";
+    document.body.appendChild(toasterRoot);
+
+    ReactDOM.createRoot(toasterRoot).render(
       <React.StrictMode>
-        <Toaster position="bottom-right" />
-        <ContentBody />
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              border: "1px solid #68717a",
+              color: "#000",
+            },
+          }}
+        />
       </React.StrictMode>
     );
   }
 };
 
+// Initial check and render
+checkForElementsAndRender();
+renderToaster();
+
 // Start observing the DOM for changes
-observeDOM(checkForElementAndRender);
+observeDOM(checkForElementsAndRender);
