@@ -6,6 +6,8 @@ import toast from "react-hot-toast";
 const ContentBody = () => {
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
+  const [textarea, setTextarea] = React.useState(null);
+  const [checkbox, setCheckbox] = React.useState(null);
 
   const copyToClipboard = React.useCallback((text, itemId, title) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -14,6 +16,90 @@ const ContentBody = () => {
         duration: 3000,
       });
     });
+    
+    if (textarea) {
+      textarea.value = text;
+      textarea.style.height = "200px";
+      textarea.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
+      textarea.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      textarea.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
+      textarea.dispatchEvent(new Event("focus", { bubbles: true, cancelable: true }));
+    }
+
+    if (checkbox && !checkbox.checked) {
+      checkbox.click();
+      checkbox.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+    }
+  }, [textarea, checkbox]);
+
+  React.useEffect(() => {
+    let parentNode;
+
+    const checkForTextarea = () => {
+      const foundTextarea = parentNode.querySelector("textarea");
+      setTextarea(foundTextarea || null);
+    };
+
+    const checkForCheckboxes = () => {
+      const foundCheckbox = parentNode.querySelector('input[type="checkbox"]');
+      setCheckbox(foundCheckbox || null);
+    };
+
+    const initializeObserver = () => {
+      parentNode = document.querySelector('[data-aura-class="forceDetailPanelDesktop"]');
+      if (!parentNode) return;
+
+      // Initial check for textarea and checkbox
+      checkForTextarea();
+      checkForCheckboxes();
+
+      const observer = new MutationObserver((mutationsList) => {
+        mutationsList.forEach((mutation) => {
+          if (mutation.type === "childList" || mutation.type === "subtree" || mutation.type === "attributes") {
+            // Re-check for textarea and checkboxes when changes happen
+            setTimeout(() => {
+              checkForTextarea();
+              checkForCheckboxes();
+              console.log("DOM changes detected, re-checking...");
+            }, 100); // Delay to ensure that async DOM changes are captured
+          }
+        });
+      });
+
+      observer.observe(parentNode, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+
+      // Cleanup the observer when the component unmounts
+      return () => observer.disconnect();
+    };
+
+    // Observe URL changes in a single-page app (to detect route/layout changes)
+    const observeRouteChanges = () => {
+      const handleRouteChange = () => {
+        console.log("Route change detected");
+        initializeObserver();
+      };
+
+      // Listen for URL or route changes
+      window.addEventListener("hashchange", handleRouteChange);
+      window.addEventListener("popstate", handleRouteChange); // Reacts to SPA navigation
+
+      return () => {
+        window.removeEventListener("hashchange", handleRouteChange);
+        window.removeEventListener("popstate", handleRouteChange);
+      };
+    };
+
+    // Initial call to setup observer and route change detection
+    initializeObserver();
+    const cleanupRouteChangeObserver = observeRouteChanges();
+
+    return () => {
+      cleanupRouteChangeObserver();
+    };
   }, []);
 
   chrome.storage.onChanged.addListener((changes, namespace) => {
@@ -22,8 +108,8 @@ const ContentBody = () => {
       setMessages(newMessages);
       toast.success("Button messages updated", {
         duration: 3000,
-        icon: '📝',
-        id: "updated-messages"
+        icon: "📝",
+        id: "updated-messages",
       });
     }
   });
@@ -57,7 +143,8 @@ const ContentBody = () => {
                 style={{
                   color: copiedItemId === msg.id ? "#0b963e" : "#3a424a",
                   borderColor: copiedItemId === msg.id ? "#0b963e" : "#68717a",
-                  backgroundColor: copiedItemId === msg.id? "#d3f5df" : "#f7f9fa",
+                  backgroundColor:
+                    copiedItemId === msg.id ? "#d3f5df" : "#f7f9fa",
                 }}
                 onClick={() => copyToClipboard(msg.message, msg.id, msg.title)}
               >
