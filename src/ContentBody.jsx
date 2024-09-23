@@ -9,14 +9,9 @@ const ContentBody = ({root}) => {
   const [textarea, setTextarea] = React.useState(null);
   const [checkbox, setCheckbox] = React.useState(null);
 
-  const copyToClipboard = React.useCallback((text, itemId, title) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedItemId(itemId);
-      toast.success(`Copied ${title} to clipboard`, {
-        duration: 3000,
-      });
-    });
-    
+  const fillFields = React.useCallback((text, itemId, title) => {
+    let actions = 0;
+
     if (textarea) {
       textarea.value = text;
       textarea.style.height = "200px";
@@ -24,11 +19,24 @@ const ContentBody = ({root}) => {
       textarea.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
       textarea.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
       textarea.dispatchEvent(new Event("focus", { bubbles: true, cancelable: true }));
+      actions++;
     }
 
     if (checkbox && !checkbox.checked) {
       checkbox.click();
       checkbox.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+    }
+
+    if (actions > 0) {
+      toast.success(<span>Comment body filled with <b>{title}</b></span>, {
+        autoClose: 5000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+      });
+      setCopiedItemId(itemId);
     }
   }, [textarea, checkbox]);
 
@@ -142,7 +150,7 @@ const ContentBody = ({root}) => {
                   backgroundColor:
                     copiedItemId === msg.id ? "#d3f5df" : "#f7f9fa",
                 }}
-                onClick={() => copyToClipboard(msg.message, msg.id, msg.title)}
+                onClick={() => fillFields(msg.message, msg.id, msg.title)}
               >
                 {msg.title}
               </button>

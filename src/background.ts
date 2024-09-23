@@ -1,4 +1,36 @@
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
+
+function defaultMessagesRender (){
+  return [
+    {
+      id: uuidv4(),
+      messages: [
+        {
+          id: uuidv4(),
+          message:
+            "Hello Team,\n\nThank you for raising a case with us. \nYour query was categorized as Sev 3. \nWe will analyze the issue and provide more information. \nPlease wait for our feedback.",
+          position: 0,
+          title: "Severity 3",
+        },
+        {
+          id: uuidv4(),
+          message:
+            "Hello Team,\n\nPlease note that I will be closing this case due to the absence of feedback for more than 5 days.\nShould any further investigation be required, kindly open a new case instead of reopening the current one.",
+          posiiton: 1,
+          title: "7 days inactive",
+        },
+        {
+          id: uuidv4(),
+          message: "Hello Team,\n\n",
+          position: 2,
+          title: "Hello Team",
+        },
+      ],
+      position: 0,
+      title: "Comments",
+    },
+  ];
+};
 
 function initialSetup() {
   console.log("Initial setup started.");
@@ -37,19 +69,7 @@ function initialSetup() {
   chrome.storage.local.get("initialized", (result) => {
     if (result.initialized) return;
 
-    const defaultMessages = [
-      {
-        position: 0,
-        title: "Severities",
-        id: uuidv4(),
-        messages: [
-          { title: "Severity 3", message: createMessage(3), id: uuidv4(), position: 0 },
-          { title: "Severity 2", message: createMessage(2), id: uuidv4(), posiiton: 1 },
-          { title: "Severity 1", message: createMessage(1), id: uuidv4(), position: 2 },
-        ],
-      },
-      // Additional categories can be added here
-    ];
+    const defaultMessages = defaultMessagesRender();
     chrome.storage.local.set(
       {
         initialized: true,
@@ -63,12 +83,3 @@ function initialSetup() {
 }
 
 initialSetup();
-
-function createMessage(severity) {
-  return `Hi Team,
-
-Thank you for raising a case with us. 
-Your query was categorized as Sev ${severity}. 
-We will analyze the issue and provide more information. 
-Please wait for our feedback.`;
-}
