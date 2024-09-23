@@ -2,6 +2,7 @@ import React from "react";
 import "./App.css";
 import { v4 as uuidv4 } from "uuid";
 import {
+  ArrowUp,
   Check,
   ChevronRight,
   Copy,
@@ -23,23 +24,27 @@ import {
 import { arrayMove } from "@dnd-kit/sortable";
 import SortableItem from "./components/SortableItem";
 
-
-
 function App() {
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [editingMessage, setEditingMessage] = React.useState(null);
+  const [latestVersion, setLatestVersion] = React.useState(null);
+  const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
   React.useEffect(() => {
     chrome.storage.local.get("button_messages", (result) => {
       // Ensure result.button_messages is an array or fallback to an empty array
       setMessages(result.button_messages || []);
     });
-  }, []);
 
-  React.useEffect(() => {
-    console.log(messages);
-  }, [messages]);
+    chrome.storage.local.get("update_available", (result) => {
+      setUpdateAvailable(result.update_available);
+    });
+
+    chrome.storage.local.get("latest_version", (result) => {
+      setLatestVersion(result.latest_version);
+    });
+  }, []);
 
   const copyToClipboard = React.useCallback((text, itemId) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -74,30 +79,6 @@ function App() {
       // Update local storage with the new categories array
       chrome.storage.local.set({ button_messages: updatedCategories }, () => {
         console.log("Message added to local storage");
-      });
-
-      return updatedCategories;
-    });
-  };
-
-  const deleteMessage = (categoryId, messageId) => {
-    setMessages((prevMessages) => {
-      const updatedCategories = prevMessages.map((category) => {
-        if (category.id === categoryId) {
-          const updatedMessages = category.messages.filter(
-            (message) => message.id !== messageId
-          );
-
-          return {
-            ...category,
-            messages: updatedMessages,
-          };
-        }
-        return category;
-      });
-
-      chrome.storage.local.set({ button_messages: updatedCategories }, () => {
-        console.log("Message deleted from local storage");
       });
 
       return updatedCategories;
@@ -188,13 +169,30 @@ function App() {
     }
   };
 
+  const openReleases = () => {
+    chrome.tabs.create({
+      url: "https://github.com/bSienkiewicz/NEST/releases",
+    });
+  };
+
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
-      <h1 className="text-3xl font-bold text-center p-6 shadow">Parrot</h1>
-      <div className="absolute top-0 right-0 p-2 w-full flex gap-2 items-center text-[8px] text-gray-400">
-        <button onClick={handleImport}>Import</button>
-        <span>/</span>
-        <button onClick={handleExport}>Export</button>
+      <h1 className="text-3xl font-bold text-center p-6 shadow">NEST</h1>
+
+      <div className="absolute top-1 right-1 flex flex-col">
+        {updateAvailable && (
+          <div
+            className="py-1 px-2 bg-green-300 rounded text-gray-500 cursor-pointer flex gap-1 items-center text-[8px]"
+            onClick={openReleases}
+          >
+            <ArrowUp size={10} /> Update - {latestVersion}
+          </div>
+        )}
+        <div className="p-2 flex gap-2 items-center text-[8px] text-gray-400">
+          <button onClick={handleImport}>Import</button>
+          <span>/</span>
+          <button onClick={handleExport}>Export</button>
+        </div>
       </div>
 
       <div className="flex-grow overflow-auto space-y-6 relative p-8">

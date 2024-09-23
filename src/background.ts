@@ -32,39 +32,44 @@ function defaultMessagesRender (){
   ];
 };
 
-function initialSetup() {
-  console.log("Initial setup started.");
+const checkForUpdate = async () => {
+  // Get current version from the extension's manifest.json
+  const currentVersion = chrome.runtime.getManifest().version;
+  const username = 'bSienkiewicz'
+  const repo = 'nest'
+
   // Fetch the latest version from GitHub
-  fetch(
-    "https://raw.githubusercontent.com/bSienkiewicz/Nest/master/public/manifest.json"
-  )
-    .then((response) => response.text())
-    .then((text) => JSON.parse(text))
-    .then((githubManifest) => {
-      const githubVersion = githubManifest.version;
+  const repoManifestUrl = `https://raw.githubusercontent.com/${username}/${repo}/refs/heads/master/manifest.json`;
 
-      // Get the local extension's manifest version
-      const localManifest = chrome.runtime.getManifest();
-      const localVersion = localManifest.version;
+  try {
+    const response = await fetch(repoManifestUrl);
+    if (!response.ok) throw new Error('Failed to fetch manifest.json from GitHub');
 
-      // Compare the versions
-      if (githubVersion !== localVersion) {
-        console.log(
-          `New version available: ${githubVersion}. Current version: ${localVersion}.`
-        );
-        chrome.storage.local.set({
-          latest_version: githubVersion,
-          update_available: true,
-        });
-      } else {
-        console.log("You have the latest version.");
-        chrome.storage.local.set({ update_available: false });
-      }
-    })
-    .catch((error) => {
-      console.error("Error fetching manifest.json from GitHub:", error);
-    });
+    const data = await response.json();
+    const latestVersion = data.version;
 
+    // Compare versions
+    if (currentVersion !== latestVersion) {
+      console.log(
+        `New version available: ${latestVersion}. Current version: ${currentVersion}.`
+      );
+      chrome.storage.local.set({
+        latest_version: latestVersion,
+        update_available: true,
+      });
+    } else {
+      console.log("You have the latest version.");
+      chrome.storage.local.set({
+        latest_version: latestVersion,
+        update_available: false,
+      });
+    }
+  } catch (error) {
+    console.error('Error checking for updates:', error);
+  }
+};
+
+function initialSetup() {
   // Initialize default settings if not already done
   chrome.storage.local.get("initialized", (result) => {
     if (result.initialized) return;
@@ -83,3 +88,4 @@ function initialSetup() {
 }
 
 initialSetup();
+checkForUpdate();
