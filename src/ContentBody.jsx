@@ -56,12 +56,8 @@ const ContentBody = () => {
       const observer = new MutationObserver((mutationsList) => {
         mutationsList.forEach((mutation) => {
           if (mutation.type === "childList" || mutation.type === "subtree" || mutation.type === "attributes") {
-            // Re-check for textarea and checkboxes when changes happen
-            setTimeout(() => {
-              checkForTextarea();
-              checkForCheckboxes();
-              console.log("DOM changes detected, re-checking...");
-            }, 100); // Delay to ensure that async DOM changes are captured
+            checkForTextarea();
+            checkForCheckboxes();
           }
         });
       });
