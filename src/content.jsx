@@ -35,7 +35,7 @@ const checkForElementsAndRender = () => {
 
       ReactDOM.createRoot(root).render(
         <React.StrictMode>
-          <ContentBody />
+          <ContentBody root={root} />
         </React.StrictMode>
       );
     }
