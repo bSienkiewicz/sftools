@@ -191,6 +191,11 @@ function App() {
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
       <h1 className="text-3xl font-bold text-center p-6 shadow">Parrot</h1>
+      <div className="absolute top-0 right-0 p-2 w-full flex gap-2 items-center text-[8px] text-gray-400">
+        <button onClick={handleImport}>Import</button>
+        <span>/</span>
+        <button onClick={handleExport}>Export</button>
+      </div>
 
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
         {messages.map((category) => (
