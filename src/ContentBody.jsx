@@ -3,7 +3,7 @@ import "./index.css";
 import { Check } from "lucide-react";
 import toast from "react-hot-toast";
 
-const ContentBody = () => {
+const ContentBody = ({root}) => {
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [textarea, setTextarea] = React.useState(null);
@@ -46,7 +46,7 @@ const ContentBody = () => {
     };
 
     const initializeObserver = () => {
-      parentNode = document.querySelector('[data-aura-class="forceDetailPanelDesktop"]');
+      parentNode = root.parentNode;
       if (!parentNode) return;
 
       // Initial check for textarea and checkbox

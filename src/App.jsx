@@ -7,11 +7,23 @@ import {
   Copy,
   Edit,
   FileDown,
+  GripVertical,
   Import,
+  Move,
   Plus,
   Trash2,
 } from "lucide-react";
 import EditMessageModal from "./EditMessageModal";
+import { DndContext, closestCenter } from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { arrayMove } from "@dnd-kit/sortable";
+import SortableItem from "./components/SortableItem";
+
+
 
 function App() {
   const [messages, setMessages] = React.useState([]);
@@ -146,16 +158,40 @@ function App() {
     fileInput.click();
   };
 
+  const handleDragEnd = (event, categoryId) => {
+    const { active, over } = event;
+    if (active.id !== over.id) {
+      setMessages((prevMessages) => {
+        const updatedCategories = prevMessages.map((category) => {
+          if (category.id === categoryId) {
+            const oldIndex = category.messages.findIndex(
+              (msg) => msg.id === active.id
+            );
+            const newIndex = category.messages.findIndex(
+              (msg) => msg.id === over.id
+            );
+
+            const updatedMessages = arrayMove(
+              category.messages,
+              oldIndex,
+              newIndex
+            );
+            return { ...category, messages: updatedMessages };
+          }
+          return category;
+        });
+
+        chrome.storage.local.set({ button_messages: updatedCategories });
+
+        return updatedCategories;
+      });
+    }
+  };
+
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
       <h1 className="text-3xl font-bold text-center p-6 shadow">Parrot</h1>
-      <div className="absolute top-0 right-0 p-2 w-full flex gap-2 items-center text-[8px] text-gray-400">
-        <button onClick={handleImport}>Import</button>
-        <span>/</span>
-        <button onClick={handleExport}>Export</button>
-      </div>
 
-      {/* Flexible container for the message list */}
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
         {messages.map((category) => (
           <div key={category.id} className="mt-5 group">
@@ -163,51 +199,39 @@ function App() {
               <h2 className="text-base font-semibold rounded text-gray-700">
                 {category.title}
               </h2>
-              <button
-                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-600 transition-opacity"
-                onClick={() => addNewMessage(category.id)}
-              >
+              <button onClick={() => addNewMessage(category.id)}>
                 <Plus size={14} />
               </button>
             </div>
 
             {/* Message list */}
-            <ul className="space-y-2">
-              {category.messages.map((msg, index) => (
-                <li key={msg.id} className="group/item">
-                  <div className="flex justify-between items-center">
-                    <button
-                      className="w-full text-left py-2 px-3 flex gap-5 items-center hover:bg-gray-100 transition-colors rounded"
-                      onClick={() => copyToClipboard(msg.message, msg.id)}
-                    >
-                      <div className="bg-neutral-100 p-1 rounded">
-                        {copiedItemId === msg.id ? (
-                          <Check size={14} className="text-green-500" />
-                        ) : (
-                          <Copy size={14} className="text-gray-400" />
-                        )}
-                      </div>
-                      <span className="text-sm text-gray-600">{msg.title}</span>
-                    </button>
-
-                    {/* Edit/Delete buttons */}
-                    <div className="opacity-0 group-hover/item:opacity-100 flex space-x-1 ml-2">
-                      <button
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                        onClick={() => editMessage(category.id, msg.id)}
-                      >
-                        <Edit size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <DndContext
+              collisionDetection={closestCenter}
+              onDragEnd={(e) => handleDragEnd(e, category.id)}
+            >
+              <SortableContext
+                items={category.messages.map((msg) => msg.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="space-y-2">
+                  {category.messages.map((msg) => (
+                    <SortableItem
+                      key={msg.id}
+                      id={msg.id}
+                      message={msg}
+                      copiedItemId={copiedItemId}
+                      copyToClipboard={copyToClipboard}
+                      editMessage={editMessage}
+                      categoryId={category.id}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
           </div>
         ))}
       </div>
 
-      {/* Edit Message Modal */}
       {editingMessage && (
         <EditMessageModal
           messages={messages}
@@ -215,9 +239,6 @@ function App() {
           messageId={editingMessage.messageId}
           onSave={saveEditedMessage}
           onClose={() => setEditingMessage(null)}
-          onDelete={() =>
-            deleteMessage(editingMessage.categoryId, editingMessage.messageId)
-          }
         />
       )}
     </div>
