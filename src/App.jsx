@@ -85,6 +85,22 @@ function App() {
     });
   };
 
+  const handleDeleteMessage = (messageId) => {
+    const updatedCategories = messages.map((category) => {
+      if (category.messages.some((msg) => msg.id === messageId)) {
+        return {
+          ...category,
+          messages: category.messages.filter((msg) => msg.id !== messageId),
+        };
+      }
+      return category;
+    });
+    setMessages(updatedCategories);
+    chrome.storage.local.set({ button_messages: updatedCategories }, () => {
+      console.log("Message deleted from local storage");
+    });
+  };
+
   const saveEditedMessage = (categoryId, messageId, newTitle, newMessage) => {
     const updatedCategories = messages.map((category) => {
       if (category.id === categoryId) {
@@ -242,6 +258,7 @@ function App() {
           messageId={editingMessage.messageId}
           onSave={saveEditedMessage}
           onClose={() => setEditingMessage(null)}
+          onDelete={() => handleDeleteMessage(editingMessage.messageId)}
         />
       )}
     </div>
