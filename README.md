@@ -1,4 +1,4 @@
-# NEST
+# SFTools
 
 Chrome extension  designed to simplify the process of managing and inserting premade messages within Salesforce. Although developed as an internal tool for our company, the extension works seamlessly with any Salesforce integration.
 

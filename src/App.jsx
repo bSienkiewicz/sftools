@@ -53,18 +53,17 @@ function App() {
     });
   }, []);
 
-  const editMessage = (categoryId, messageId) => {
+  const handleEditMessage = (categoryId, messageId) => {
     setEditingMessage({ categoryId, messageId });
   };
 
-  const addNewMessage = (categoryId) => {
+  const handleAddNewMessage = (categoryId) => {
     const newMessage = {
       title: "New message",
       message: "New message body",
       id: uuidv4(),
     };
 
-    // Get the current categories from state
     setMessages((prevMessages) => {
       const updatedCategories = prevMessages.map((category) => {
         if (category.id === categoryId) {
@@ -101,7 +100,7 @@ function App() {
     });
   };
 
-  const saveEditedMessage = (categoryId, messageId, newTitle, newMessage) => {
+  const handleSaveEditedMessage = (categoryId, messageId, newTitle, newMessage) => {
     const updatedCategories = messages.map((category) => {
       if (category.id === categoryId) {
         return {
@@ -187,13 +186,13 @@ function App() {
 
   const openReleases = () => {
     chrome.tabs.create({
-      url: "https://github.com/bSienkiewicz/NEST/releases",
+      url: "https://github.com/bSienkiewicz/sftools/releases",
     });
   };
 
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
-      <h1 className="text-3xl font-bold text-center p-6 shadow">NEST</h1>
+      <h1 className="text-3xl font-bold text-center p-6 shadow">SF Tools</h1>
 
       <div className="absolute top-1 right-1 flex flex-col">
         {updateAvailable && (
@@ -218,7 +217,7 @@ function App() {
               <h2 className="text-base font-semibold rounded text-gray-700">
                 {category.title}
               </h2>
-              <button onClick={() => addNewMessage(category.id)}>
+              <button onClick={() => handleAddNewMessage(category.id)}>
                 <Plus size={14} />
               </button>
             </div>
@@ -240,7 +239,7 @@ function App() {
                       message={msg}
                       copiedItemId={copiedItemId}
                       copyToClipboard={copyToClipboard}
-                      editMessage={editMessage}
+                      editMessage={handleEditMessage}
                       categoryId={category.id}
                     />
                   ))}
@@ -256,7 +255,7 @@ function App() {
           messages={messages}
           categoryId={editingMessage.categoryId}
           messageId={editingMessage.messageId}
-          onSave={saveEditedMessage}
+          onSave={handleSaveEditedMessage}
           onClose={() => setEditingMessage(null)}
           onDelete={() => handleDeleteMessage(editingMessage.messageId)}
         />

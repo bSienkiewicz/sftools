@@ -1,5 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 
+// GitHub API endpoints
+const GH_USERNAME = 'bSienkiewicz'
+const GH_REPO = 'sftools'
+
 function defaultMessagesRender (){
   return [
     {
@@ -14,20 +18,20 @@ function defaultMessagesRender (){
         },
         {
           id: uuidv4(),
-          message:
-            "Hello Team,\n\nPlease note that I will be closing this case due to the absence of feedback for more than 5 days.\nShould any further investigation be required, kindly open a new case instead of reopening the current one.",
-          posiiton: 1,
-          title: "7 days inactive",
+          message: "Hello Team,\n\nThank you for raising a case with us. \nYour query was categorized as Maintenance. \nWe will analyze the issue and provide more information. \nPlease wait for our feedback.",
+          position: 1,
+          title: "Maintenance",
         },
         {
           id: uuidv4(),
-          message: "Hello Team,\n\n",
-          position: 2,
-          title: "Hello Team",
+          message:
+            "Hello Team,\n\nPlease note that I will be closing this case due to the absence of feedback for more than 5 days.\nShould any further investigation be required, kindly open a new case instead of reopening the current one.",
+          posiiton: 2,
+          title: "7 days inactive",
         },
       ],
       position: 0,
-      title: "Comments",
+      title: "Comment templates",
     },
   ];
 };
@@ -35,11 +39,9 @@ function defaultMessagesRender (){
 const checkForUpdate = async () => {
   // Get current version from the extension's manifest.json
   const currentVersion = chrome.runtime.getManifest().version;
-  const username = 'bSienkiewicz'
-  const repo = 'nest'
 
   // Fetch the latest version from GitHub
-  const repoManifestUrl = `https://raw.githubusercontent.com/${username}/${repo}/refs/heads/master/manifest.json`;
+  const repoManifestUrl = `https://raw.githubusercontent.com/${GH_USERNAME}/${GH_REPO}/refs/heads/master/manifest.json`;
 
   try {
     const response = await fetch(repoManifestUrl);
