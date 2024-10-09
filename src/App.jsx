@@ -3,31 +3,24 @@ import "./App.css";
 import { v4 as uuidv4 } from "uuid";
 import {
   ArrowUp,
-  Check,
-  ChevronRight,
-  Copy,
-  Edit,
-  FileDown,
-  GripVertical,
-  Import,
-  Move,
   Plus,
-  Trash2,
+  Settings,
 } from "lucide-react";
 import EditMessageModal from "./EditMessageModal";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
 import { arrayMove } from "@dnd-kit/sortable";
 import SortableItem from "./components/SortableItem";
+import SettingsModal from "./SettingsModal";
 
 function App() {
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [editingMessage, setEditingMessage] = React.useState(null);
+  const [settingsVisible, setSettingsVisible] = React.useState(null);
   const [latestVersion, setLatestVersion] = React.useState(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
@@ -56,6 +49,10 @@ function App() {
   const handleEditMessage = (categoryId, messageId) => {
     setEditingMessage({ categoryId, messageId });
   };
+
+  const handleShowSettings = () => {
+    setSettingsVisible(true);
+  }
 
   const handleAddNewMessage = (categoryId) => {
     const newMessage = {
@@ -210,6 +207,10 @@ function App() {
         </div>
       </div>
 
+      <div className="absolute top-0 left-0 text-gray-500 p-1 cursor-pointer" onClick={handleShowSettings}>
+        <Settings size={16} />
+      </div>
+
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
         {messages.map((category) => (
           <div key={category.id} className="mt-5 group">
@@ -258,6 +259,12 @@ function App() {
           onSave={handleSaveEditedMessage}
           onClose={() => setEditingMessage(null)}
           onDelete={() => handleDeleteMessage(editingMessage.messageId)}
+        />
+      )}
+
+      {!editingMessage && settingsVisible && (
+        <SettingsModal
+          onClose={() => setSettingsVisible(false)}
         />
       )}
     </div>

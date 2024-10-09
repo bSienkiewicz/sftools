@@ -87,6 +87,18 @@ function initialSetup() {
       }
     );
   });
+
+  chrome.storage.local.get("showSevenDays", (result) => {
+    if (!result.showSevenDays) {
+      chrome.storage.local.set({ showSevenDays: true });
+    }
+  });
+
+  chrome.storage.local.get("sevenDaysAmount", (result) => {
+    if (!result.sevenDaysAmount) {
+      chrome.storage.local.set({ sevenDaysAmount: 7 });
+    }
+  });
 }
 
 initialSetup();
