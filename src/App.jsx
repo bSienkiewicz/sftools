@@ -1,33 +1,22 @@
 import React from "react";
 import "./App.css";
 import { v4 as uuidv4 } from "uuid";
-import {
-  ArrowUp,
-  Check,
-  ChevronRight,
-  Copy,
-  Edit,
-  FileDown,
-  GripVertical,
-  Import,
-  Move,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { ArrowUp, Plus, Settings } from "lucide-react";
 import EditMessageModal from "./EditMessageModal";
-import { DndContext, closestCenter } from "@dnd-kit/core";
+import { closestCenter, DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
-  useSortable,
 } from "@dnd-kit/sortable";
 import { arrayMove } from "@dnd-kit/sortable";
 import SortableItem from "./components/SortableItem";
+import SettingsModal from "./SettingsModal";
 
 function App() {
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [editingMessage, setEditingMessage] = React.useState(null);
+  const [settingsVisible, setSettingsVisible] = React.useState(null);
   const [latestVersion, setLatestVersion] = React.useState(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
 
@@ -55,6 +44,10 @@ function App() {
 
   const handleEditMessage = (categoryId, messageId) => {
     setEditingMessage({ categoryId, messageId });
+  };
+
+  const handleShowSettings = () => {
+    setSettingsVisible(true);
   };
 
   const handleAddNewMessage = (categoryId) => {
@@ -100,7 +93,12 @@ function App() {
     });
   };
 
-  const handleSaveEditedMessage = (categoryId, messageId, newTitle, newMessage) => {
+  const handleSaveEditedMessage = (
+    categoryId,
+    messageId,
+    newTitle,
+    newMessage,
+  ) => {
     const updatedCategories = messages.map((category) => {
       if (category.id === categoryId) {
         return {
@@ -161,16 +159,16 @@ function App() {
         const updatedCategories = prevMessages.map((category) => {
           if (category.id === categoryId) {
             const oldIndex = category.messages.findIndex(
-              (msg) => msg.id === active.id
+              (msg) => msg.id === active.id,
             );
             const newIndex = category.messages.findIndex(
-              (msg) => msg.id === over.id
+              (msg) => msg.id === over.id,
             );
 
             const updatedMessages = arrayMove(
               category.messages,
               oldIndex,
-              newIndex
+              newIndex,
             );
             return { ...category, messages: updatedMessages };
           }
@@ -210,6 +208,13 @@ function App() {
         </div>
       </div>
 
+      <div
+        className="absolute top-0 left-0 text-gray-500 p-1 cursor-pointer"
+        onClick={handleShowSettings}
+      >
+        <Settings size={16} />
+      </div>
+
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
         {messages.map((category) => (
           <div key={category.id} className="mt-5 group">
@@ -217,7 +222,10 @@ function App() {
               <h2 className="text-base font-semibold rounded text-gray-700">
                 {category.title}
               </h2>
-              <button onClick={() => handleAddNewMessage(category.id)}>
+              <button
+                onClick={() =>
+                  handleAddNewMessage(category.id)}
+              >
                 <Plus size={14} />
               </button>
             </div>
@@ -225,7 +233,8 @@ function App() {
             {/* Message list */}
             <DndContext
               collisionDetection={closestCenter}
-              onDragEnd={(e) => handleDragEnd(e, category.id)}
+              onDragEnd={(e) =>
+                handleDragEnd(e, category.id)}
             >
               <SortableContext
                 items={category.messages.map((msg) => msg.id)}
@@ -258,6 +267,12 @@ function App() {
           onSave={handleSaveEditedMessage}
           onClose={() => setEditingMessage(null)}
           onDelete={() => handleDeleteMessage(editingMessage.messageId)}
+        />
+      )}
+
+      {!editingMessage && settingsVisible && (
+        <SettingsModal
+          onClose={() => setSettingsVisible(false)}
         />
       )}
     </div>

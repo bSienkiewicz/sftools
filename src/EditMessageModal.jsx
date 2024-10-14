@@ -1,5 +1,5 @@
 import { ArrowLeft, Save, Trash2, X } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 const EditMessageModal = ({
   messages,
@@ -102,7 +102,8 @@ const EditMessageModal = ({
             onChange={handleMessageChange}
             rows={8}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          ></textarea>
+          >
+          </textarea>
         </div>
 
         <div className="flex justify-between pt-4">

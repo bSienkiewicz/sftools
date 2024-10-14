@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./nest_buttons.css";
-import ContentBody from "./ContentBody";
+import ContentBody from "./TemplateContentBody";
 import { Toaster } from "react-hot-toast";
 
 // Function to observe DOM changes
@@ -23,7 +23,7 @@ const observeDOM = (callback) => {
 // Function to check for the presence of target elements and render
 const checkForElementsAndRender = () => {
   const targetElements = document.querySelectorAll(
-    '[data-aura-class="forceDetailPanelDesktop"]'
+    '[data-aura-class="forceDetailPanelDesktop"]',
   );
 
   targetElements.forEach((targetElement) => {
@@ -36,7 +36,7 @@ const checkForElementsAndRender = () => {
       ReactDOM.createRoot(root).render(
         <React.StrictMode>
           <ContentBody root={root} />
-        </React.StrictMode>
+        </React.StrictMode>,
       );
     }
   });
@@ -60,7 +60,7 @@ const renderToaster = () => {
             },
           }}
         />
-      </React.StrictMode>
+      </React.StrictMode>,
     );
   }
 };

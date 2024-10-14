@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SF Tools",
-  "version": "0.3.4",
+  "version": "0.3.6",
   "action": { "default_popup": "index.html" },
   "permissions": ["activeTab", "tabs", "storage"],
   "background": { "service_worker": "src/background.js", "type": "module" },
@@ -14,9 +14,8 @@
   "content_scripts": [
     {
       "matches": ["*://*.force.com/*"],
-      "js": ["src/content.jsx"],
+      "js": ["src/TemplateContent.jsx", "src/SevenDays.jsx"],
       "run_at": "document_idle"
     }
   ]
-
 }
