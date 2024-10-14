@@ -3,7 +3,8 @@ import "./index.css";
 import { Check } from "lucide-react";
 import toast from "react-hot-toast";
 
-const ContentBody = ({root}) => {
+const ContentBody = ({ root }) => {
+  const [showTemplates, setShowTemplates] = React.useState(false);
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [textarea, setTextarea] = React.useState(null);
@@ -15,34 +16,54 @@ const ContentBody = ({root}) => {
     if (textarea) {
       textarea.value = text;
       textarea.style.height = "200px";
-      textarea.dispatchEvent(new Event("input", { bubbles: true, cancelable: true }));
-      textarea.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
-      textarea.dispatchEvent(new Event("blur", { bubbles: true, cancelable: true }));
-      textarea.dispatchEvent(new Event("focus", { bubbles: true, cancelable: true }));
+      textarea.dispatchEvent(
+        new Event("input", { bubbles: true, cancelable: true }),
+      );
+      textarea.dispatchEvent(
+        new Event("change", { bubbles: true, cancelable: true }),
+      );
+      textarea.dispatchEvent(
+        new Event("blur", { bubbles: true, cancelable: true }),
+      );
+      textarea.dispatchEvent(
+        new Event("focus", { bubbles: true, cancelable: true }),
+      );
       actions++;
     }
 
     if (checkbox && !checkbox.checked) {
       checkbox.click();
-      checkbox.dispatchEvent(new Event("change", { bubbles: true, cancelable: true }));
+      checkbox.dispatchEvent(
+        new Event("change", { bubbles: true, cancelable: true }),
+      );
     }
 
     if (actions > 0) {
-      toast.success(<span>Comment body filled with <b>{title}</b></span>, {
-        autoClose: 5000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-      });
+      toast.success(
+        <span>
+          Comment body filled with <b>{title}</b>
+        </span>,
+        {
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        },
+      );
       setCopiedItemId(itemId);
     }
   }, [textarea, checkbox]);
 
+  const checkShowTemplates = () => {
+    chrome.storage.local.get("showTemplates", (result) => {
+      setShowTemplates(result.showTemplates);
+    });
+  };
+
   React.useEffect(() => {
     let parentNode;
-
     const checkForTextarea = () => {
       const foundTextarea = parentNode.querySelector("textarea");
       setTextarea(foundTextarea || null);
@@ -63,7 +84,10 @@ const ContentBody = ({root}) => {
 
       const observer = new MutationObserver((mutationsList) => {
         mutationsList.forEach((mutation) => {
-          if (mutation.type === "childList" || mutation.type === "subtree" || mutation.type === "attributes") {
+          if (
+            mutation.type === "childList" || mutation.type === "subtree" ||
+            mutation.type === "attributes"
+          ) {
             checkForTextarea();
             checkForCheckboxes();
           }
@@ -123,7 +147,10 @@ const ContentBody = ({root}) => {
       const messages = result.button_messages || [];
       setMessages(messages);
     });
+    checkShowTemplates();
   }, []);
+
+  if (!showTemplates) return;
 
   return (
     <div className="relative p-4 border rounded">
@@ -147,8 +174,9 @@ const ContentBody = ({root}) => {
                 style={{
                   color: copiedItemId === msg.id ? "#0b963e" : "#3a424a",
                   borderColor: copiedItemId === msg.id ? "#0b963e" : "#68717a",
-                  backgroundColor:
-                    copiedItemId === msg.id ? "#d3f5df" : "#f7f9fa",
+                  backgroundColor: copiedItemId === msg.id
+                    ? "#d3f5df"
+                    : "#f7f9fa",
                 }}
                 onClick={() => fillFields(msg.message, msg.id, msg.title)}
               >

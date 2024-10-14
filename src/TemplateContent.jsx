@@ -23,7 +23,7 @@ const observeDOM = (callback) => {
 // Function to check for the presence of target elements and render
 const checkForElementsAndRender = () => {
   const targetElements = document.querySelectorAll(
-    '[data-aura-class="forceDetailPanelDesktop"]'
+    '[data-aura-class="forceDetailPanelDesktop"]',
   );
 
   targetElements.forEach((targetElement) => {
@@ -36,7 +36,7 @@ const checkForElementsAndRender = () => {
       ReactDOM.createRoot(root).render(
         <React.StrictMode>
           <ContentBody root={root} />
-        </React.StrictMode>
+        </React.StrictMode>,
       );
     }
   });
@@ -60,7 +60,7 @@ const renderToaster = () => {
             },
           }}
         />
-      </React.StrictMode>
+      </React.StrictMode>,
     );
   }
 };

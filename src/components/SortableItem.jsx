@@ -31,8 +31,11 @@ function SortableItem({
         >
           <div
             className="cursor-grab p-1"
-            {...listeners} // Apply listeners only to this div
-            {...attributes}
+            {...listeners}
+            {
+              // Apply listeners only to this div
+              ...attributes
+            }
           >
             <GripVertical size={16} className="text-gray-600" />
           </div>

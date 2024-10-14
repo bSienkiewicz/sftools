@@ -27,11 +27,11 @@ const observeDOM = (callback) => {
 const checkForElementsAndRender = () => {
   if (!showSevenDaysReminder) return; // Early return if the feature is disabled
 
-  chrome.storage.local.get('sevenDaysAmount').then((res) => {
+  chrome.storage.local.get("sevenDaysAmount").then((res) => {
     const daysToCheck = res.sevenDaysAmount || 7; // Default to 7 days if not set
 
     const targetTable = document.querySelector(
-      '[data-aura-class="uiVirtualDataTable"]'
+      '[data-aura-class="uiVirtualDataTable"]',
     );
 
     if (!targetTable) {
@@ -40,7 +40,7 @@ const checkForElementsAndRender = () => {
 
     // Find the "Last Modified Date" column (th Table)
     let lastModifiedColumn = targetTable.querySelector(
-      'th[title="Last Modified Date"]'
+      'th[title="Last Modified Date"]',
     );
 
     if (lastModifiedColumn) {
@@ -53,7 +53,7 @@ const checkForElementsAndRender = () => {
       const currentDateOnly = new Date(
         currentDate.getFullYear(),
         currentDate.getMonth(),
-        currentDate.getDate()
+        currentDate.getDate(),
       );
 
       rows.forEach((row, rowIndex) => {
@@ -82,8 +82,7 @@ const checkForElementsAndRender = () => {
             cells[columnIndex - 1].style.borderRadius = "2px";
             cells[columnIndex - 1].style.color = "red";
             cells[columnIndex - 1].style.backgroundColor = "#ffeeee";
-          }
-          else {
+          } else {
             cells[columnIndex - 1].style.border = "";
             cells[columnIndex - 1].style.borderRadius = "";
             cells[columnIndex - 1].style.color = "";
@@ -94,7 +93,6 @@ const checkForElementsAndRender = () => {
     }
   });
 };
-
 
 // Function to check the config in Chrome storage
 const checkConfigOnce = () => {

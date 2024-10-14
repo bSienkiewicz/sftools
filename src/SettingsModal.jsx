@@ -1,21 +1,31 @@
-import { ArrowLeft, Save, Trash2, X } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import {
+  ArrowLeft,
+  CircleHelp,
+  FileQuestion,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import React, { useEffect, useState } from "react";
 
-const SettingsModal = ({
-  onClose,
-}) => {
+const SettingsModal = ({ onClose }) => {
   const [isVisible, setIsVisible] = useState(false); // State to control visibility
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showSevenDays, setShowSevenDays] = useState(false);
   const [sevenDaysAmount, setSevenDaysAmount] = useState(false);
 
   // Get the current message when the component mounts
   useEffect(() => {
-    chrome.storage.local.get('showSevenDays').then((data) => {
+    chrome.storage.local.get("showSevenDays").then((data) => {
       setShowSevenDays(data.showSevenDays);
     });
 
-    chrome.storage.local.get('sevenDaysAmount').then((data) => {
+    chrome.storage.local.get("sevenDaysAmount").then((data) => {
       setSevenDaysAmount(data.sevenDaysAmount);
+    });
+
+    chrome.storage.local.get("showTemplates").then((data) => {
+      setShowTemplates(data.showTemplates);
     });
 
     setTimeout(() => {
@@ -23,15 +33,20 @@ const SettingsModal = ({
     }, 10);
   }, []);
 
+  const handleShowTemplatesChange = (event) => {
+    setShowTemplates(event.target.checked);
+    chrome.storage.local.set({ showTemplates: event.target.checked });
+  };
+
   const handleShowSevenDaysChange = (event) => {
     setShowSevenDays(event.target.checked);
     chrome.storage.local.set({ showSevenDays: event.target.checked });
-  }
+  };
 
   const handleSevenDaysAmountChange = (event) => {
     setSevenDaysAmount(event.target.value);
     chrome.storage.local.set({ sevenDaysAmount: event.target.value });
-  }
+  };
 
   const handleClose = () => {
     setIsVisible(false);
@@ -58,71 +73,55 @@ const SettingsModal = ({
         <div className="w-4"></div> {/* Spacer for alignment */}
       </div>
 
-      <div className="grid grid-cols-[40%,60%] gap-4 items-center">
-          <label htmlFor="showClosingReminder" className="select-none" title="Must have 'Last Modified Date' enabled on your case view">Show closing reminder</label>
+      <div className="flex flex-col gap-4 items-center">
+        <div className="flex gap-4 w-full items-center">
           <input
             type="checkbox"
-            id="showClosingReminder"
+            id="showTemplatesCheck"
+            checked={showTemplates}
+            onChange={(e) => handleShowTemplatesChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="showTemplatesCheck"
+            className="select-none"
+          >
+            Show templates
+          </label>
+        </div>
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="showClosingReminderCheck"
             checked={showSevenDays}
             onChange={(e) => handleShowSevenDaysChange(e)}
-            className="form-checkbox place-self-start"
+            className="form-checkbox"
           />
-
-          <label htmlFor="sevenDaysAmount" className="select-none">Reminder duration (days)</label>
-          <input
-            id="sevenDaysAmount"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            value={sevenDaysAmount}
-            onChange={(e) => handleSevenDaysAmountChange(e)}
-          />
-        {/* <div>
           <label
-            htmlFor="title"
-            className="block text-sm font-medium text-gray-700 mb-1"
+            htmlFor="showClosingReminderCheck"
+            className="select-none flex items-center"
+            title="Must have 'Last Modified Date' visible on your Cases dashboard"
           >
-            Title
+            Display closing reminder
+            <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
-          <input
-            type="text"
-            id="title"
-            value={currentMessage.title}
-            onChange={handleTitleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          />
         </div>
-
-        <div>
-          <label
-            htmlFor="description"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Message
-          </label>
-          <textarea
-            id="description"
-            value={currentMessage.message}
-            onChange={handleMessageChange}
-            rows={8}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-          ></textarea>
-        </div>
-
-        <div className="flex justify-between pt-4">
-          <button
-            onClick={handleSave}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <Save size={14} className="mr-2" />
-            Save
-          </button>
-          <button
-            onClick={handleDelete}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <Trash2 size={14} className="mr-2" />
-            Delete
-          </button>
-        </div> */}
+        {showSevenDays && (
+          <div className="flex gap-4 w-full items-center">
+            <label
+              htmlFor="sevenDaysAmount"
+              className="select-none whitespace-nowrap"
+            >
+              Reminder duration (days)
+            </label>
+            <input
+              id="sevenDaysAmount"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              value={sevenDaysAmount}
+              onChange={(e) => handleSevenDaysAmountChange(e)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

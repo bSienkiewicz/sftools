@@ -1,13 +1,9 @@
 import React from "react";
 import "./App.css";
 import { v4 as uuidv4 } from "uuid";
-import {
-  ArrowUp,
-  Plus,
-  Settings,
-} from "lucide-react";
+import { ArrowUp, Plus, Settings } from "lucide-react";
 import EditMessageModal from "./EditMessageModal";
-import { DndContext, closestCenter } from "@dnd-kit/core";
+import { closestCenter, DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -52,7 +48,7 @@ function App() {
 
   const handleShowSettings = () => {
     setSettingsVisible(true);
-  }
+  };
 
   const handleAddNewMessage = (categoryId) => {
     const newMessage = {
@@ -97,7 +93,12 @@ function App() {
     });
   };
 
-  const handleSaveEditedMessage = (categoryId, messageId, newTitle, newMessage) => {
+  const handleSaveEditedMessage = (
+    categoryId,
+    messageId,
+    newTitle,
+    newMessage,
+  ) => {
     const updatedCategories = messages.map((category) => {
       if (category.id === categoryId) {
         return {
@@ -158,16 +159,16 @@ function App() {
         const updatedCategories = prevMessages.map((category) => {
           if (category.id === categoryId) {
             const oldIndex = category.messages.findIndex(
-              (msg) => msg.id === active.id
+              (msg) => msg.id === active.id,
             );
             const newIndex = category.messages.findIndex(
-              (msg) => msg.id === over.id
+              (msg) => msg.id === over.id,
             );
 
             const updatedMessages = arrayMove(
               category.messages,
               oldIndex,
-              newIndex
+              newIndex,
             );
             return { ...category, messages: updatedMessages };
           }
@@ -207,7 +208,10 @@ function App() {
         </div>
       </div>
 
-      <div className="absolute top-0 left-0 text-gray-500 p-1 cursor-pointer" onClick={handleShowSettings}>
+      <div
+        className="absolute top-0 left-0 text-gray-500 p-1 cursor-pointer"
+        onClick={handleShowSettings}
+      >
         <Settings size={16} />
       </div>
 
@@ -218,7 +222,10 @@ function App() {
               <h2 className="text-base font-semibold rounded text-gray-700">
                 {category.title}
               </h2>
-              <button onClick={() => handleAddNewMessage(category.id)}>
+              <button
+                onClick={() =>
+                  handleAddNewMessage(category.id)}
+              >
                 <Plus size={14} />
               </button>
             </div>
@@ -226,7 +233,8 @@ function App() {
             {/* Message list */}
             <DndContext
               collisionDetection={closestCenter}
-              onDragEnd={(e) => handleDragEnd(e, category.id)}
+              onDragEnd={(e) =>
+                handleDragEnd(e, category.id)}
             >
               <SortableContext
                 items={category.messages.map((msg) => msg.id)}

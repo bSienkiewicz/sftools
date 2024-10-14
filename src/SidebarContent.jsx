@@ -23,7 +23,7 @@ const observeDOM = (callback) => {
 // Function to check for the presence of target elements and render
 const checkForElementsAndRender = () => {
   const targetElements = document.querySelectorAll(
-    '[name="sidebar"]'
+    '[name="sidebar"]',
   );
 
   targetElements.forEach((targetElement) => {
@@ -32,13 +32,12 @@ const checkForElementsAndRender = () => {
       const root = document.createElement("div");
       root.className = "crx-sidebar-root slds-card";
       targetElement.appendChild(root);
-      
+
       ReactDOM.createRoot(root).render(
         <React.StrictMode>
           <SidebarContentBody root={root} />
-        </React.StrictMode>
+        </React.StrictMode>,
       );
-      
     }
   });
 };
