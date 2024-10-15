@@ -8,6 +8,7 @@ const ContentBody = ({ root }) => {
   const [messages, setMessages] = React.useState([]);
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [textarea, setTextarea] = React.useState(null);
+  const [textareaDirty, setTextareaDirty] = React.useState(false);
   const [checkbox, setCheckbox] = React.useState(null);
 
   const fillFields = React.useCallback((text, itemId, title) => {
@@ -67,6 +68,12 @@ const ContentBody = ({ root }) => {
     const checkForTextarea = () => {
       const foundTextarea = parentNode.querySelector("textarea");
       setTextarea(foundTextarea || null);
+
+      if (foundTextarea) {
+        foundTextarea.addEventListener("input", (event) => {
+          setTextareaDirty(event.target.value.length > 0); // Mark as dirty if there's content
+        });
+      }
     };
 
     const checkForCheckboxes = () => {
@@ -129,6 +136,25 @@ const ContentBody = ({ root }) => {
       cleanupRouteChangeObserver();
     };
   }, []);
+
+  React.useEffect(() => {
+    const handleBeforeUnload = (event) => {
+      if (textareaDirty) {
+        const confirmationMessage = "Dude, you are going to lose the message.";
+        event.preventDefault();
+        event.returnValue = confirmationMessage;
+        return confirmationMessage;
+      }
+    };
+
+    console.log(textareaDirty)
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [textareaDirty]);
 
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === "local" && changes.button_messages) {
