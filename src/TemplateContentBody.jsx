@@ -67,12 +67,15 @@ const ContentBody = ({ root }) => {
     let parentNode;
     const checkForTextarea = () => {
       const foundTextarea = parentNode.querySelector("textarea");
-      setTextarea(foundTextarea || null);
-
+      
       if (foundTextarea) {
+        setTextarea(foundTextarea);
         foundTextarea.addEventListener("input", (event) => {
           setTextareaDirty(event.target.value.length > 0); // Mark as dirty if there's content
         });
+      } else {
+        setTextarea(null);  // Reset the textarea reference
+        setTextareaDirty(false);  // Reset the dirty state when the textarea is removed
       }
     };
 
@@ -140,7 +143,7 @@ const ContentBody = ({ root }) => {
   React.useEffect(() => {
     const handleBeforeUnload = (event) => {
       if (textareaDirty) {
-        const confirmationMessage = "Dude, you are going to lose the message.";
+        const confirmationMessage = "You have unsaved changes that are going to be lost!";
         event.preventDefault();
         event.returnValue = confirmationMessage;
         return confirmationMessage;
