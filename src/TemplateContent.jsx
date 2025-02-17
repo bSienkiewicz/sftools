@@ -4,31 +4,25 @@ import "./nest_buttons.css";
 import ContentBody from "./TemplateContentBody";
 import { Toaster } from "react-hot-toast";
 
-// Function to observe DOM changes
-const observeDOM = (callback) => {
-  const observer = new MutationObserver((mutationsList) => {
-    for (let mutation of mutationsList) {
-      if (mutation.type === "childList" || mutation.type === "attributes") {
-        callback();
-      }
-    }
-  });
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-  });
+const processedElements = new Set(); // Store already processed elements
+
+// Debounce function to limit excessive calls
+const debounce = (func, delay) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), delay);
+  };
 };
 
-// Function to check for the presence of target elements and render
+// Function to check for target elements and render template buttons
 const checkForElementsAndRender = () => {
   const targetElements = document.querySelectorAll(
-    '[data-aura-class="forceDetailPanelDesktop"]',
+    '[data-aura-class="forceDetailPanelDesktop"]'
   );
 
   targetElements.forEach((targetElement) => {
-    // Check if this target element already has our component
-    if (!targetElement.querySelector(".crx-root")) {
+    if (!processedElements.has(targetElement)) {
       const root = document.createElement("div");
       root.className = "crx-root";
       targetElement.appendChild(root);
@@ -36,13 +30,27 @@ const checkForElementsAndRender = () => {
       ReactDOM.createRoot(root).render(
         <React.StrictMode>
           <ContentBody root={root} />
-        </React.StrictMode>,
+        </React.StrictMode>
       );
+
+      processedElements.add(targetElement); // Mark as processed
     }
   });
 };
 
-// Render Toaster separately, only once
+// Optimized DOM observer with debouncing
+const observeDOM = debounce(() => {
+  checkForElementsAndRender();
+}, 300); // Adjust delay to balance performance
+
+const observer = new MutationObserver(observeDOM);
+observer.observe(document.body, {
+  childList: true,
+  subtree: true,
+  attributes: true,
+});
+
+// Function to render Toaster (only once)
 const renderToaster = () => {
   if (!document.getElementById("crx-toaster")) {
     const toasterRoot = document.createElement("div");
@@ -60,14 +68,11 @@ const renderToaster = () => {
             },
           }}
         />
-      </React.StrictMode>,
+      </React.StrictMode>
     );
   }
 };
 
-// Initial check and render
+// Initial execution
 checkForElementsAndRender();
 renderToaster();
-
-// Start observing the DOM for changes
-observeDOM(checkForElementsAndRender);

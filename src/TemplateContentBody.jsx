@@ -9,10 +9,11 @@ const ContentBody = ({ root }) => {
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [textarea, setTextarea] = React.useState(null);
   const [checkbox, setCheckbox] = React.useState(null);
+  
+  const lastCheckboxRef = React.useRef(null);
 
   const fillFields = React.useCallback((text, itemId, title) => {
     let actions = 0;
-
     if (textarea) {
       textarea.value = text;
       textarea.style.height = "200px";
@@ -70,8 +71,22 @@ const ContentBody = ({ root }) => {
     };
 
     const checkForCheckboxes = () => {
-      const foundCheckbox = parentNode.querySelector('input[type="checkbox"]');
-      setCheckbox(foundCheckbox || null);
+      let newCheckbox = null;
+      root.parentNode.querySelectorAll('div').forEach(div => {
+        if (div.textContent.trim() === 'Public') {
+          const checkbox = div.querySelector('input[type="checkbox"]');
+    
+          // Ensure checkbox exists and is not hidden
+          if (checkbox && checkbox.offsetParent !== null) {
+            newCheckbox = checkbox;
+          }
+        }
+      });
+    
+      if (newCheckbox && newCheckbox !== lastCheckboxRef.current) {
+        lastCheckboxRef.current = newCheckbox;
+        setCheckbox(newCheckbox);
+      }
     };
 
     const initializeObserver = () => {
@@ -107,7 +122,6 @@ const ContentBody = ({ root }) => {
     // Observe URL changes in a single-page app (to detect route/layout changes)
     const observeRouteChanges = () => {
       const handleRouteChange = () => {
-        console.log("Route change detected");
         initializeObserver();
       };
 
