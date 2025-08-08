@@ -1,24 +1,17 @@
 {
   "manifest_version": 3,
   "name": "SF Tools",
-  "version": "0.3.11",
+  "version": "0.3.11.1",
   "action": {
     "default_popup": "index.html"
-  },
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "{a6e378f1-8030-422a-81ec-b568dae16322}",
-      "strict_min_version": "58.0"
-    }
   },
   "permissions": [
     "activeTab",
     "tabs",
-    "storage"
+    "storage",
+    "cookies"
   ],
-  "background": {
-    "scripts": ["src/background.js"]
-  },
+  "background": { "service_worker": "src/background.js", "type": "module" },
   "icons": {
     "16": "icons/icon_16.png",
     "32": "icons/icon_32.png",
