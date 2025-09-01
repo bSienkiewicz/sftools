@@ -10,6 +10,7 @@ const ContentBody = ({ root }) => {
   const [textarea, setTextarea] = React.useState(null);
   const [checkbox, setCheckbox] = React.useState(null);
   const [textExpansions, setTextExpansions] = React.useState([]);
+  const [enableTextExpansion, setEnableTextExpansion] = React.useState(true);
   
   const lastCheckboxRef = React.useRef(null);
 
@@ -60,6 +61,9 @@ const ContentBody = ({ root }) => {
 
   // Function to handle text expansion
   const handleTextExpansion = React.useCallback((event) => {
+    // Check if text expansion is enabled
+    if (!enableTextExpansion) return;
+    
     const target = event.target;
     const isTextInput = target.tagName === 'TEXTAREA' || 
                        (target.tagName === 'INPUT' && target.type === 'text') ||
@@ -89,6 +93,7 @@ const ContentBody = ({ root }) => {
           
           if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
             target.value = newText;
+            target.style.height = "200px";
             // Trigger input event to notify any listeners
             target.dispatchEvent(new Event('input', { bubbles: true }));
             target.dispatchEvent(new Event('change', { bubbles: true }));
@@ -125,10 +130,16 @@ const ContentBody = ({ root }) => {
         }
       }
     }
-  }, [textExpansions, checkbox]);
+  }, [textExpansions, checkbox, enableTextExpansion]);
   const checkShowTemplates = () => {
     chrome.storage.local.get("showTemplates", (result) => {
       setShowTemplates(result.showTemplates);
+    });
+  };
+
+  const checkEnableTextExpansion = () => {
+    chrome.storage.local.get("enableTextExpansion", (result) => {
+      setEnableTextExpansion(result.enableTextExpansion !== false); // Default to true if not set
     });
   };
 
@@ -248,6 +259,10 @@ const ContentBody = ({ root }) => {
         id: "updated-messages",
       });
     }
+    
+    if (namespace === "local" && changes.enableTextExpansion) {
+      setEnableTextExpansion(changes.enableTextExpansion.newValue !== false);
+    }
   });
 
   React.useEffect(() => {
@@ -267,6 +282,7 @@ const ContentBody = ({ root }) => {
       setTextExpansions(expansions);
     });
     checkShowTemplates();
+    checkEnableTextExpansion();
   }, []);
 
   if (!showTemplates) return;
@@ -286,22 +302,27 @@ const ContentBody = ({ root }) => {
             className="flex gap-4 flex-wrap"
             style={{ flexWrap: "wrap", gap: "6px" }}
           >
-            {category.messages.map((msg, index) => (
-              <button
-                key={msg.id}
-                className="border rounded px-4 py-2 text-[14px] font-semibold transition-all bg-neutral-100"
-                style={{
-                  color: copiedItemId === msg.id ? "#0b963e" : "#3a424a",
-                  borderColor: copiedItemId === msg.id ? "#0b963e" : "#68717a",
-                  backgroundColor: copiedItemId === msg.id
-                    ? "#d3f5df"
-                    : "#f7f9fa",
-                }}
-                onClick={() => fillFields(msg.message, msg.id, msg.title)}
-              >
-                {msg.title}
-              </button>
-            ))}
+                         {category.messages.map((msg, index) => (
+               <button
+                 key={msg.id}
+                 className="border rounded px-4 py-2 text-[14px] font-semibold transition-all bg-neutral-100"
+                 style={{
+                   color: copiedItemId === msg.id ? "#0b963e" : "#3a424a",
+                   borderColor: copiedItemId === msg.id ? "#0b963e" : "#68717a",
+                   backgroundColor: copiedItemId === msg.id
+                     ? "#d3f5df"
+                     : "#f7f9fa",
+                 }}
+                 onClick={() => fillFields(msg.message, msg.id, msg.title)}
+               >
+                 <div className="flex flex-row gap-2">
+                   <span className="text-sm text-gray-600">{msg.title}</span>
+                   {msg.alias && (
+                     <span className="text-gray-500" style={{"alignSelf": "center", "fontSize": "8px"}}>;{msg.alias}</span>
+                   )}
+                 </div>
+               </button>
+             ))}
           </div>
         </div>
       ))}

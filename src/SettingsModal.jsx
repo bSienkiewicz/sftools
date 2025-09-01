@@ -13,6 +13,7 @@ const SettingsModal = ({ onClose }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showSevenDays, setShowSevenDays] = useState(false);
   const [sevenDaysAmount, setSevenDaysAmount] = useState(false);
+  const [enableTextExpansion, setEnableTextExpansion] = useState(true);
 
   // Get the current message when the component mounts
   useEffect(() => {
@@ -26,6 +27,10 @@ const SettingsModal = ({ onClose }) => {
 
     chrome.storage.local.get("showTemplates").then((data) => {
       setShowTemplates(data.showTemplates);
+    });
+
+    chrome.storage.local.get("enableTextExpansion").then((data) => {
+      setEnableTextExpansion(data.enableTextExpansion !== false); // Default to true if not set
     });
 
     setTimeout(() => {
@@ -46,6 +51,11 @@ const SettingsModal = ({ onClose }) => {
   const handleSevenDaysAmountChange = (event) => {
     setSevenDaysAmount(event.target.value);
     chrome.storage.local.set({ sevenDaysAmount: event.target.value });
+  };
+
+  const handleEnableTextExpansionChange = (event) => {
+    setEnableTextExpansion(event.target.checked);
+    chrome.storage.local.set({ enableTextExpansion: event.target.checked });
   };
 
   const handleClose = () => {
@@ -122,6 +132,23 @@ const SettingsModal = ({ onClose }) => {
             />
           </div>
         )}
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="enableTextExpansionCheck"
+            checked={enableTextExpansion}
+            onChange={(e) => handleEnableTextExpansionChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="enableTextExpansionCheck"
+            className="select-none flex items-center"
+            title="Type ;alias+Enter in any text field to expand templates"
+          >
+            Enable text expansion
+            <CircleHelp size={12} className="ml-1 cursor-help" />
+          </label>
+        </div>
       </div>
     </div>
   );
