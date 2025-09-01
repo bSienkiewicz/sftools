@@ -12,6 +12,7 @@ const EditMessageModal = ({
   const [currentMessage, setCurrentMessage] = useState({
     title: "",
     message: "",
+    alias: "",
   });
   const [isVisible, setIsVisible] = useState(false); // State to control visibility
 
@@ -20,7 +21,11 @@ const EditMessageModal = ({
     const category = messages.find((category) => category.id === categoryId);
     const message = category?.messages.find((msg) => msg.id === messageId);
     if (message) {
-      setCurrentMessage({ title: message.title, message: message.message });
+      setCurrentMessage({ 
+        title: message.title, 
+        message: message.message,
+        alias: message.alias || ""
+      });
     }
 
     // Start animation to show the modal
@@ -37,6 +42,10 @@ const EditMessageModal = ({
     setCurrentMessage((prev) => ({ ...prev, message: e.target.value }));
   };
 
+  const handleAliasChange = (e) => {
+    setCurrentMessage((prev) => ({ ...prev, alias: e.target.value }));
+  };
+
   const handleClose = () => {
     setIsVisible(false);
     setTimeout(() => {
@@ -45,7 +54,7 @@ const EditMessageModal = ({
   };
 
   const handleSave = () => {
-    onSave(categoryId, messageId, currentMessage.title, currentMessage.message);
+    onSave(categoryId, messageId, currentMessage.title, currentMessage.message, currentMessage.alias);
     handleClose(); // Close the modal after saving
   };
 
@@ -104,6 +113,26 @@ const EditMessageModal = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
           </textarea>
+        </div>
+
+        <div>
+          <label
+            htmlFor="alias"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
+            Alias (optional)
+          </label>
+          <input
+            type="text"
+            id="alias"
+            value={currentMessage.alias}
+            onChange={handleAliasChange}
+            placeholder="e.g., elo, sw, 7d, s3"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Type ;alias+Enter in any text field to expand this template. Leave empty to disable.
+          </p>
         </div>
 
         <div className="flex justify-between pt-4">

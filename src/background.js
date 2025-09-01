@@ -21,6 +21,7 @@ function defaultMessagesRender() {
             "Hi team,\n\nThank you for your ticket. We have started working on your request, and we'll keep you updated on the progress.",
           position: 0,
           title: "Started working",
+          alias: "sw",
         },
         {
           id: uuidv4(),
@@ -28,12 +29,14 @@ function defaultMessagesRender() {
             "Hello Team,\n\nPlease note that I will be closing this case due to the absence of feedback for more than 5 days.\nShould any further investigation be required, kindly open a new case instead of reopening the current one.",
           posiiton: 1,
           title: "7 days inactive",
+          alias: "7d",
         },
         {
           id: uuidv4(),
           message: "Hello Team,\n\n",
           posiiton: 2,
           title: "Hello Team",
+          alias: "elo",
         },
         {
           id: uuidv4(),
@@ -41,6 +44,7 @@ function defaultMessagesRender() {
             "Hello Team,\n\nThank you for raising a case with us. \nYour query was categorized as Sev 3. \nWe will analyze the issue and provide more information. \nPlease wait for our feedback.",
           position: 3,
           title: "Severity 3",
+          alias: "s3",
         },
       ],
       position: 0,

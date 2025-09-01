@@ -55,6 +55,7 @@ function App() {
       title: "New message",
       message: "New message body",
       id: uuidv4(),
+      alias: ""
     };
 
     setMessages((prevMessages) => {
@@ -98,6 +99,7 @@ function App() {
     messageId,
     newTitle,
     newMessage,
+    newAlias,
   ) => {
     const updatedCategories = messages.map((category) => {
       if (category.id === categoryId) {
@@ -105,7 +107,7 @@ function App() {
           ...category,
           messages: category.messages.map((msg) =>
             msg.id === messageId
-              ? { ...msg, title: newTitle, message: newMessage }
+              ? { ...msg, title: newTitle, message: newMessage, alias: newAlias }
               : msg
           ),
         };
@@ -144,8 +146,19 @@ function App() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const jsonData = JSON.parse(e.target.result);
-        setMessages(jsonData);
-        chrome.storage.local.set({ button_messages: jsonData });
+        
+        // Handle backward compatibility - ensure aliases are preserved if they exist
+        const processedData = jsonData.map(category => ({
+          ...category,
+          messages: category.messages.map(msg => ({
+            ...msg,
+            // Preserve existing alias if it exists, otherwise don't add it
+            ...(msg.alias && { alias: msg.alias })
+          }))
+        }));
+        
+        setMessages(processedData);
+        chrome.storage.local.set({ button_messages: processedData });
       };
       reader.readAsText(file);
     };

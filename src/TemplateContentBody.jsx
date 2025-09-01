@@ -9,6 +9,7 @@ const ContentBody = ({ root }) => {
   const [copiedItemId, setCopiedItemId] = React.useState(null);
   const [textarea, setTextarea] = React.useState(null);
   const [checkbox, setCheckbox] = React.useState(null);
+  const [textExpansions, setTextExpansions] = React.useState([]);
   
   const lastCheckboxRef = React.useRef(null);
 
@@ -57,6 +58,74 @@ const ContentBody = ({ root }) => {
     }
   }, [textarea, checkbox]);
 
+  // Function to handle text expansion
+  const handleTextExpansion = React.useCallback((event) => {
+    const target = event.target;
+    const isTextInput = target.tagName === 'TEXTAREA' || 
+                       (target.tagName === 'INPUT' && target.type === 'text') ||
+                       target.contentEditable === 'true';
+    
+    if (!isTextInput) return;
+    
+    // Check if Enter was pressed
+    if (event.key === 'Enter') {
+      const currentText = target.value || target.textContent || '';
+      const lines = currentText.split('\n');
+      const lastLine = lines[lines.length - 1];
+      
+      // Look for alias pattern (semicolon + alias)
+      const aliasMatch = lastLine.match(/^;(\w+)$/);
+      
+      if (aliasMatch) {
+        const alias = aliasMatch[1];
+        const expansion = textExpansions.find(exp => exp.alias === alias);
+        
+        if (expansion) {
+          event.preventDefault();
+          
+          // Replace the last line with the expansion text
+          lines[lines.length - 1] = expansion.text;
+          const newText = lines.join('\n');
+          
+          if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
+            target.value = newText;
+            // Trigger input event to notify any listeners
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+            target.dispatchEvent(new Event('blur', { bubbles: true }));
+            target.dispatchEvent(new Event('focus', { bubbles: true }));
+          } else if (target.contentEditable === 'true') {
+            target.textContent = newText;
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          
+          // Handle the Public checkbox
+          if (checkbox && !checkbox.checked) {
+            checkbox.click();
+            checkbox.dispatchEvent(
+              new Event("change", { bubbles: true, cancelable: true }),
+            );
+          }
+          
+          // Show toast notification
+          toast.success(
+            <span>
+              Comment body filled with <b>{expansion.title}</b>
+            </span>,
+            {
+              autoClose: 5000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              id: "text-expansion",
+            },
+          );
+        }
+      }
+    }
+  }, [textExpansions, checkbox]);
   const checkShowTemplates = () => {
     chrome.storage.local.get("showTemplates", (result) => {
       setShowTemplates(result.showTemplates);
@@ -144,10 +213,35 @@ const ContentBody = ({ root }) => {
     };
   }, []);
 
+  // Set up text expansion event listener
+  React.useEffect(() => {
+    document.addEventListener('keydown', handleTextExpansion);
+    
+    return () => {
+      document.removeEventListener('keydown', handleTextExpansion);
+    };
+  }, [handleTextExpansion]);
+
+
+
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === "local" && changes.button_messages) {
       const newMessages = changes.button_messages.newValue;
       setMessages(newMessages);
+      
+      // Update text expansions when messages change
+      if (newMessages) {
+        const expansions = newMessages
+          .flatMap(category => category.messages)
+          .filter(msg => msg.alias)
+          .map(msg => ({
+            alias: msg.alias,
+            text: msg.message,
+            title: msg.title
+          }));
+        setTextExpansions(expansions);
+      }
+      
       toast.success("Button messages updated", {
         duration: 3000,
         icon: "📝",
@@ -160,6 +254,17 @@ const ContentBody = ({ root }) => {
     chrome.storage.local.get("button_messages", (result) => {
       const messages = result.button_messages || [];
       setMessages(messages);
+      
+      // Extract text expansions from messages
+      const expansions = messages
+        .flatMap(category => category.messages)
+        .filter(msg => msg.alias) // Only include messages with aliases
+        .map(msg => ({
+          alias: msg.alias,
+          text: msg.message,
+          title: msg.title
+        }));
+      setTextExpansions(expansions);
     });
     checkShowTemplates();
   }, []);

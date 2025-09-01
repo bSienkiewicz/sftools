@@ -21,6 +21,26 @@ our company, the extension works seamlessly with any Salesforce integration.
 3. You can edit the buttons by clicking the extension icon and navigating
    through the popup configuration.
 
+### Text Expansion Feature
+
+The extension includes a TextExpander-like functionality that works with your existing templates:
+
+1. **Add Aliases**: Edit any template and add an alias (e.g., "elo", "sw", "7d", "s3")
+2. **Use Aliases**: Type `;alias` followed by Enter in any text field to expand the text
+
+**Example**:
+- Edit "Hello Team" template and add alias "elo"
+- Type `;elo` + Enter in any text field
+- The text will be replaced with the full "Hello Team" message
+
+**Default Aliases**:
+- `;sw` → "Started working" template
+- `;7d` → "7 days inactive" template  
+- `;elo` → "Hello Team" template
+- `;s3` → "Severity 3" template
+
+**Usage**: You can either click the template button to fill the entire comment, or use the alias to expand just that text anywhere.
+
 ## Known Issues
 
 - _**missing required field: [ParentId]**_: This error may occur when

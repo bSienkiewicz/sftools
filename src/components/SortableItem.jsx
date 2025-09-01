@@ -39,7 +39,12 @@ function SortableItem({
           >
             <GripVertical size={16} className="text-gray-600" />
           </div>
-          <span className="text-sm text-gray-600">{message.title}</span>
+          <div className="flex flex-col">
+            <span className="text-sm text-gray-600">{message.title}</span>
+            {message.alias && (
+              <span className="text-xs text-gray-400">;{message.alias}</span>
+            )}
+          </div>
         </button>
 
         {/* Only this div will be draggable */}
