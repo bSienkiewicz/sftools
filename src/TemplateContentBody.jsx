@@ -59,7 +59,7 @@ const ContentBody = ({ root }) => {
     }
   }, [textarea, checkbox]);
 
-  // Function to handle text expansion
+  // Function to handle text expansion and visual feedback
   const handleTextExpansion = React.useCallback((event) => {
     // Check if text expansion is enabled
     if (!enableTextExpansion) return;
@@ -131,6 +131,45 @@ const ContentBody = ({ root }) => {
       }
     }
   }, [textExpansions, checkbox, enableTextExpansion]);
+
+  // Function to handle visual feedback for aliases
+  const handleAliasVisualFeedback = React.useCallback((event) => {
+    // Check if text expansion is enabled
+    if (!enableTextExpansion) return;
+    
+    const target = event.target;
+    const isTextarea = target.tagName === 'TEXTAREA';
+    
+    if (!isTextarea) return;
+    
+    const currentText = target.value || '';
+    const lines = currentText.split('\n');
+    const lastLine = lines[lines.length - 1];
+    
+    // Look for alias pattern (semicolon + alias)
+    const aliasMatch = lastLine.match(/^;(\w+)$/);
+    
+    if (aliasMatch) {
+      const alias = aliasMatch[1];
+      const expansion = textExpansions.find(exp => exp.alias === alias);
+      
+      if (expansion) {
+        // Add visual feedback - highlight the alias with green border
+        target.style.borderColor = '#0b963e'; // Green border
+        target.style.boxShadow = '0 0 0 1px #0b963e';
+      } else {
+        // Invalid alias - reset styling
+        target.style.borderColor = '';
+        target.style.borderWidth = '';
+        target.style.boxShadow = '';
+      }
+    } else {
+      // No alias pattern - reset styling
+      target.style.borderColor = '';
+      target.style.borderWidth = '';
+      target.style.boxShadow = '';
+    }
+  }, [textExpansions, enableTextExpansion]);
   const checkShowTemplates = () => {
     chrome.storage.local.get("showTemplates", (result) => {
       setShowTemplates(result.showTemplates);
@@ -232,6 +271,15 @@ const ContentBody = ({ root }) => {
       document.removeEventListener('keydown', handleTextExpansion);
     };
   }, [handleTextExpansion]);
+
+  // Set up visual feedback event listener
+  React.useEffect(() => {
+    document.addEventListener('input', handleAliasVisualFeedback);
+    
+    return () => {
+      document.removeEventListener('input', handleAliasVisualFeedback);
+    };
+  }, [handleAliasVisualFeedback]);
 
 
 
