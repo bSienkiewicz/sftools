@@ -14,6 +14,7 @@ const SettingsModal = ({ onClose }) => {
   const [showSevenDays, setShowSevenDays] = useState(false);
   const [sevenDaysAmount, setSevenDaysAmount] = useState(false);
   const [enableTextExpansion, setEnableTextExpansion] = useState(true);
+  const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
 
   // Get the current message when the component mounts
   useEffect(() => {
@@ -31,6 +32,10 @@ const SettingsModal = ({ onClose }) => {
 
     chrome.storage.local.get("enableTextExpansion").then((data) => {
       setEnableTextExpansion(data.enableTextExpansion !== false); // Default to true if not set
+    });
+
+    chrome.storage.local.get("showTextExpansionAlias").then((data) => {
+      setShowTextExpansionAlias(data.showTextExpansionAlias !== false); // Default to true if not set
     });
 
     setTimeout(() => {
@@ -56,6 +61,11 @@ const SettingsModal = ({ onClose }) => {
   const handleEnableTextExpansionChange = (event) => {
     setEnableTextExpansion(event.target.checked);
     chrome.storage.local.set({ enableTextExpansion: event.target.checked });
+  };
+
+  const handleShowTextExpansionAliasChange = (event) => {
+    setShowTextExpansionAlias(event.target.checked);
+    chrome.storage.local.set({ showTextExpansionAlias: event.target.checked });
   };
 
   const handleClose = () => {
@@ -84,6 +94,8 @@ const SettingsModal = ({ onClose }) => {
       </div>
 
       <div className="flex flex-col gap-4 items-center">
+        <hr className="w-full" />
+        <h2 className="text-sm font-light tracking-wide self-start">General Settings</h2>
         <div className="flex gap-4 w-full items-center">
           <input
             type="checkbox"
@@ -132,6 +144,9 @@ const SettingsModal = ({ onClose }) => {
             />
           </div>
         )}
+        <hr className="w-full" />
+        <h2 className="text-sm font-light tracking-wide self-start">Text Expansion</h2>
+
         <div className="flex gap-4 w-full items-center">
           <input
             type="checkbox"
@@ -146,6 +161,23 @@ const SettingsModal = ({ onClose }) => {
             title="Type ;alias+Enter in any text field to expand templates"
           >
             Enable text expansion
+            <CircleHelp size={12} className="ml-1 cursor-help" />
+          </label>
+        </div>
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="showTextExpansionAlias"
+            checked={showTextExpansionAlias}
+            onChange={(e) => handleShowTextExpansionAliasChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="showTextExpansionAlias"
+            className="select-none flex items-center"
+            title="Display aliases on template buttons"
+          >
+            Display aliases on template buttons
             <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
         </div>

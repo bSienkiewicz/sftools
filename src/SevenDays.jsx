@@ -6,6 +6,9 @@ let showSevenDaysReminder = false;
 let daysToCheck = 7;
 let targetTable = null;
 
+const targetTableClass = '.slds-table'
+const lastModifiedColumnAria = 'th[aria-label="Last Modified Date"]'
+
 const debounce = (func, delay) => {
   let timeout;
   return (...args) => {
@@ -20,7 +23,7 @@ const checkForElementsAndRender = () => {
 
   // Locate the "Last Modified Date" column
   const lastModifiedColumn = targetTable.querySelector(
-    'th[aria-label="Last Modified Date"]'
+    lastModifiedColumnAria
   );
 
   if (!lastModifiedColumn) return;
@@ -70,7 +73,7 @@ const observeDOM = debounce(() => {
   if (!showSevenDaysReminder) return;
   
 
-  const newTable = document.querySelector('.slds-table');
+  const newTable = document.querySelector(targetTableClass);
 
   if (newTable !== targetTable) {
     targetTable = newTable;

@@ -11,6 +11,7 @@ const ContentBody = ({ root }) => {
   const [checkbox, setCheckbox] = React.useState(null);
   const [textExpansions, setTextExpansions] = React.useState([]);
   const [enableTextExpansion, setEnableTextExpansion] = React.useState(true);
+  const [showTextExpansionAlias, setShowTextExpansionAlias] = React.useState(false);
   const [lastCtrlEnterTime, setLastCtrlEnterTime] = React.useState(0);
   
   const lastCheckboxRef = React.useRef(null);
@@ -222,6 +223,12 @@ const ContentBody = ({ root }) => {
     });
   };
 
+  const checkShowTextExpansionAlias = () => {
+    chrome.storage.local.get("showTextExpansionAlias", (result) => {
+      setShowTextExpansionAlias(result.showTextExpansionAlias !== false); // Default to true if not set
+    });
+  };
+
   React.useEffect(() => {
     let parentNode;
     const checkForTextarea = () => {
@@ -343,6 +350,10 @@ const ContentBody = ({ root }) => {
     if (namespace === "local" && changes.enableTextExpansion) {
       setEnableTextExpansion(changes.enableTextExpansion.newValue !== false);
     }
+
+    if (namespace === "local" && changes.showTextExpansionAlias) {
+      setShowTextExpansionAlias(changes.showTextExpansionAlias.newValue !== false);
+    }
   });
 
   React.useEffect(() => {
@@ -363,6 +374,7 @@ const ContentBody = ({ root }) => {
     });
     checkShowTemplates();
     checkEnableTextExpansion();
+    checkShowTextExpansionAlias();
   }, []);
 
   if (!showTemplates) return;
@@ -397,7 +409,7 @@ const ContentBody = ({ root }) => {
                >
                  <div className="flex flex-row gap-2">
                    <span className="text-sm text-gray-600">{msg.title}</span>
-                   {msg.alias && (
+                   {msg.alias && showTextExpansionAlias && (
                      <span className="text-gray-500" style={{"alignSelf": "center", "fontSize": "8px"}}>;{msg.alias}</span>
                    )}
                  </div>
