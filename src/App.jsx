@@ -133,7 +133,7 @@ function App() {
     const now = new Date().toISOString().replace(/T|Z/g, "_").slice(0, -5);
 
     a.href = url;
-    a.download = `nest_import_${now}.json`;
+    a.download = `sftools_import_${now}.json`;
     a.click();
   };
 

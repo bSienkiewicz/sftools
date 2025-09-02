@@ -11,8 +11,26 @@ const ContentBody = ({ root }) => {
   const [checkbox, setCheckbox] = React.useState(null);
   const [textExpansions, setTextExpansions] = React.useState([]);
   const [enableTextExpansion, setEnableTextExpansion] = React.useState(true);
+  const [lastCtrlEnterTime, setLastCtrlEnterTime] = React.useState(0);
   
   const lastCheckboxRef = React.useRef(null);
+
+  // Reusable function to find the Public checkbox
+  const findPublicCheckbox = React.useCallback(() => {
+    let foundCheckbox = null;
+    if (root && root.parentNode) {
+      root.parentNode.querySelectorAll('div').forEach(div => {
+        if (div.textContent.trim() === 'Public') {
+          const checkbox = div.querySelector('input[type="checkbox"]');
+          // Ensure checkbox exists and is not hidden
+          if (checkbox && checkbox.offsetParent !== null) {
+            foundCheckbox = checkbox;
+          }
+        }
+      });
+    }
+    return foundCheckbox;
+  }, [root]);
 
   const fillFields = React.useCallback((text, itemId, title) => {
     let actions = 0;
@@ -91,46 +109,67 @@ const ContentBody = ({ root }) => {
           lines[lines.length - 1] = expansion.text;
           const newText = lines.join('\n');
           
-          if (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT') {
-            target.value = newText;
-            target.style.height = "200px";
-            // Trigger input event to notify any listeners
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-            target.dispatchEvent(new Event('change', { bubbles: true }));
-            target.dispatchEvent(new Event('blur', { bubbles: true }));
-            target.dispatchEvent(new Event('focus', { bubbles: true }));
-          } else if (target.contentEditable === 'true') {
-            target.textContent = newText;
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-          }
-          
-          // Handle the Public checkbox
-          if (checkbox && !checkbox.checked) {
-            checkbox.click();
-            checkbox.dispatchEvent(
-              new Event("change", { bubbles: true, cancelable: true }),
-            );
-          }
-          
-          // Show toast notification
+          // Use fillFields function for consistency
+          fillFields(newText, expansion.alias, expansion.title);
+        }
+      }
+    }
+  }, [textExpansions, enableTextExpansion, fillFields]);
+
+  // Function to handle Ctrl+Enter double press for Save button
+  const handleCtrlEnterDoublePress = React.useCallback((event) => {
+    // Check if Ctrl+Enter was pressed
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      const currentTime = Date.now();
+      const timeDiff = currentTime - lastCtrlEnterTime;
+      
+      // If second Ctrl+Enter within 500ms, trigger Save button
+      if (timeDiff < 500 && timeDiff > 0) {
+        event.preventDefault();
+        
+        // Find and click the Save button
+        const saveButton = document.querySelector('button[title="Save"], button[aria-label*="Save"], .slds-button[title="Save"]');
+        if (saveButton) {
+          saveButton.click();
           toast.success(
             <span>
-              Comment body filled with <b>{expansion.title}</b>
+              <b>Save button clicked!</b> (Ctrl+Enter x2)
             </span>,
             {
-              autoClose: 5000,
+              autoClose: 3000,
               hideProgressBar: false,
               closeOnClick: true,
               pauseOnHover: true,
               draggable: true,
               progress: undefined,
-              id: "text-expansion",
+              id: "save-button-click",
+            },
+          );
+        } else {
+          toast.error(
+            <span>
+              <b>Save button not found!</b>
+            </span>,
+            {
+              autoClose: 3000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              id: "save-button-not-found",
             },
           );
         }
+        
+        // Reset the timer
+        setLastCtrlEnterTime(0);
+      } else {
+        // First Ctrl+Enter press, record the time
+        setLastCtrlEnterTime(currentTime);
       }
     }
-  }, [textExpansions, checkbox, enableTextExpansion]);
+  }, [lastCtrlEnterTime]);
 
   // Function to handle visual feedback for aliases
   const handleAliasVisualFeedback = React.useCallback((event) => {
@@ -170,6 +209,7 @@ const ContentBody = ({ root }) => {
       target.style.boxShadow = '';
     }
   }, [textExpansions, enableTextExpansion]);
+  
   const checkShowTemplates = () => {
     chrome.storage.local.get("showTemplates", (result) => {
       setShowTemplates(result.showTemplates);
@@ -190,17 +230,7 @@ const ContentBody = ({ root }) => {
     };
 
     const checkForCheckboxes = () => {
-      let newCheckbox = null;
-      root.parentNode.querySelectorAll('div').forEach(div => {
-        if (div.textContent.trim() === 'Public') {
-          const checkbox = div.querySelector('input[type="checkbox"]');
-    
-          // Ensure checkbox exists and is not hidden
-          if (checkbox && checkbox.offsetParent !== null) {
-            newCheckbox = checkbox;
-          }
-        }
-      });
+      const newCheckbox = findPublicCheckbox();
     
       if (newCheckbox && newCheckbox !== lastCheckboxRef.current) {
         lastCheckboxRef.current = newCheckbox;
@@ -266,11 +296,13 @@ const ContentBody = ({ root }) => {
   // Set up text expansion event listener
   React.useEffect(() => {
     document.addEventListener('keydown', handleTextExpansion);
+    document.addEventListener('keydown', handleCtrlEnterDoublePress);
     
     return () => {
       document.removeEventListener('keydown', handleTextExpansion);
+      document.removeEventListener('keydown', handleCtrlEnterDoublePress);
     };
-  }, [handleTextExpansion]);
+  }, [handleTextExpansion, handleCtrlEnterDoublePress]);
 
   // Set up visual feedback event listener
   React.useEffect(() => {

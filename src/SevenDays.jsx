@@ -20,7 +20,7 @@ const checkForElementsAndRender = () => {
 
   // Locate the "Last Modified Date" column
   const lastModifiedColumn = targetTable.querySelector(
-    'th[title="Last Modified Date"]'
+    'th[aria-label="Last Modified Date"]'
   );
 
   if (!lastModifiedColumn) return;
@@ -35,6 +35,7 @@ const checkForElementsAndRender = () => {
 
   rows.forEach((row) => {
     const cells = row.querySelectorAll("td");
+    console.log(cells);
 
     if (cells[columnIndex - 1]) {
       const cellText = cells[columnIndex - 1].innerText.trim();
@@ -67,8 +68,9 @@ const checkForElementsAndRender = () => {
 // Function to observe DOM changes
 const observeDOM = debounce(() => {
   if (!showSevenDaysReminder) return;
+  
 
-  const newTable = document.querySelector('[data-aura-class="uiVirtualDataTable"]');
+  const newTable = document.querySelector('.slds-table');
 
   if (newTable !== targetTable) {
     targetTable = newTable;
