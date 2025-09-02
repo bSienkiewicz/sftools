@@ -15,7 +15,7 @@ const SettingsModal = ({ onClose }) => {
   const [sevenDaysAmount, setSevenDaysAmount] = useState(false);
   const [enableTextExpansion, setEnableTextExpansion] = useState(true);
   const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
-
+  const [quickSendToggle, setQuickSendToggle] = useState(false);
   // Get the current message when the component mounts
   useEffect(() => {
     chrome.storage.local.get("showSevenDays").then((data) => {
@@ -38,6 +38,10 @@ const SettingsModal = ({ onClose }) => {
       setShowTextExpansionAlias(data.showTextExpansionAlias !== false); // Default to true if not set
     });
 
+    chrome.storage.local.get("quickSendToggle").then((data) => {
+      setQuickSendToggle(data.quickSendToggle);
+    });
+    
     setTimeout(() => {
       setIsVisible(true);
     }, 10);
@@ -61,6 +65,11 @@ const SettingsModal = ({ onClose }) => {
   const handleEnableTextExpansionChange = (event) => {
     setEnableTextExpansion(event.target.checked);
     chrome.storage.local.set({ enableTextExpansion: event.target.checked });
+  };
+
+  const handleQuickSendToggleChange = (event) => {
+    setQuickSendToggle(event.target.checked);
+    chrome.storage.local.set({ quickSendToggle: event.target.checked });
   };
 
   const handleShowTextExpansionAliasChange = (event) => {
@@ -144,6 +153,25 @@ const SettingsModal = ({ onClose }) => {
             />
           </div>
         )}
+        
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="quickSendToggle"
+            checked={quickSendToggle}
+            onChange={(e) => handleQuickSendToggleChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="quickSendToggle"
+            className="select-none flex items-center"
+            title="Enable Ctrl+Enter+Enter to save the comment"
+          >
+            Enable quick send
+            <CircleHelp size={12} className="ml-1 cursor-help" />
+          </label>
+        </div>
+
         <hr className="w-full" />
         <h2 className="text-sm font-light tracking-wide self-start">Text Expansion</h2>
 

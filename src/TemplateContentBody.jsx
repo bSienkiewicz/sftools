@@ -13,7 +13,7 @@ const ContentBody = ({ root }) => {
   const [enableTextExpansion, setEnableTextExpansion] = React.useState(true);
   const [showTextExpansionAlias, setShowTextExpansionAlias] = React.useState(false);
   const [lastCtrlEnterTime, setLastCtrlEnterTime] = React.useState(0);
-  
+  const [quickSendToggle, setQuickSendToggle] = React.useState(false);
   const lastCheckboxRef = React.useRef(null);
 
   // Reusable function to find the Public checkbox
@@ -120,6 +120,7 @@ const ContentBody = ({ root }) => {
   // Function to handle Ctrl+Enter double press for Save button
   const handleCtrlEnterDoublePress = React.useCallback((event) => {
     // Check if Ctrl+Enter was pressed
+    if (!quickSendToggle) return;
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       const currentTime = Date.now();
       const timeDiff = currentTime - lastCtrlEnterTime;
@@ -170,7 +171,7 @@ const ContentBody = ({ root }) => {
         setLastCtrlEnterTime(currentTime);
       }
     }
-  }, [lastCtrlEnterTime]);
+  }, [lastCtrlEnterTime, quickSendToggle]);
 
   // Function to handle visual feedback for aliases
   const handleAliasVisualFeedback = React.useCallback((event) => {
@@ -226,6 +227,12 @@ const ContentBody = ({ root }) => {
   const checkShowTextExpansionAlias = () => {
     chrome.storage.local.get("showTextExpansionAlias", (result) => {
       setShowTextExpansionAlias(result.showTextExpansionAlias !== false); // Default to true if not set
+    });
+  };
+
+  const checkQuickSendToggle = () => {
+    chrome.storage.local.get("quickSendToggle", (result) => {
+      setQuickSendToggle(result.quickSendToggle !== false);
     });
   };
 
@@ -354,6 +361,10 @@ const ContentBody = ({ root }) => {
     if (namespace === "local" && changes.showTextExpansionAlias) {
       setShowTextExpansionAlias(changes.showTextExpansionAlias.newValue !== false);
     }
+
+    if (namespace === "local" && changes.quickSendToggle) {
+      setQuickSendToggle(changes.quickSendToggle.newValue !== false);
+    }
   });
 
   React.useEffect(() => {
@@ -375,6 +386,7 @@ const ContentBody = ({ root }) => {
     checkShowTemplates();
     checkEnableTextExpansion();
     checkShowTextExpansionAlias();
+    checkQuickSendToggle();
   }, []);
 
   if (!showTemplates) return;
