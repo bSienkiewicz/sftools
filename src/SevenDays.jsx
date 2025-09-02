@@ -38,7 +38,6 @@ const checkForElementsAndRender = () => {
 
   rows.forEach((row) => {
     const cells = row.querySelectorAll("td");
-    console.log(cells);
 
     if (cells[columnIndex - 1]) {
       const cellText = cells[columnIndex - 1].innerText.trim();
