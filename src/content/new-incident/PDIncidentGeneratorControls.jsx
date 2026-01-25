@@ -1,6 +1,8 @@
 import React from "react";
 import { applyIncidentFormDefaults } from "./selectComboboxOption";
 import { applyIncidentLookupDefaults } from "./selectLookupOption";
+import { formatPagerDutySubject } from "./formatPagerDutySubject";
+import { fillSubjectField, fillDescriptionField } from "./fillSubjectField";
 import { INCIDENT_FORM_DEFAULTS, INCIDENT_LOOKUP_DEFAULTS } from "./incidentFormDefaults";
 
 const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
@@ -35,7 +37,12 @@ export default function PDIncidentGeneratorControls({ containerElement, modalSco
           return;
         }
         if (response?.ok && response.title != null) {
+          const subject = formatPagerDutySubject(response.title);
           console.log("[SF Tools] PagerDuty incident title (Salesforce):", response.title);
+          console.log("[SF Tools] Formatted Subject:", subject ?? response.title);
+          const subjectToFill = subject ?? response.title;
+          fillSubjectField(scope, subjectToFill);
+          fillDescriptionField(scope, url);
           try {
             if (INCIDENT_LOOKUP_DEFAULTS.length > 0) await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
             if (INCIDENT_FORM_DEFAULTS.length > 0) await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
