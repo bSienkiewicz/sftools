@@ -7,6 +7,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { STORAGE_KEYS } from "./constants/storage";
 
 const SettingsModal = ({ onClose }) => {
   const [isVisible, setIsVisible] = useState(false); // State to control visibility
@@ -16,30 +17,23 @@ const SettingsModal = ({ onClose }) => {
   const [enableTextExpansion, setEnableTextExpansion] = useState(true);
   const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
   const [quickSendToggle, setQuickSendToggle] = useState(false);
-  // Get the current message when the component mounts
+
   useEffect(() => {
-    chrome.storage.local.get("showSevenDays").then((data) => {
-      setShowSevenDays(data.showSevenDays);
-    });
-
-    chrome.storage.local.get("sevenDaysAmount").then((data) => {
-      setSevenDaysAmount(data.sevenDaysAmount);
-    });
-
-    chrome.storage.local.get("showTemplates").then((data) => {
-      setShowTemplates(data.showTemplates);
-    });
-
-    chrome.storage.local.get("enableTextExpansion").then((data) => {
-      setEnableTextExpansion(data.enableTextExpansion !== false); // Default to true if not set
-    });
-
-    chrome.storage.local.get("showTextExpansionAlias").then((data) => {
-      setShowTextExpansionAlias(data.showTextExpansionAlias !== false); // Default to true if not set
-    });
-
-    chrome.storage.local.get("quickSendToggle").then((data) => {
-      setQuickSendToggle(data.quickSendToggle);
+    const keys = [
+      STORAGE_KEYS.SHOW_SEVEN_DAYS,
+      STORAGE_KEYS.SEVEN_DAYS_AMOUNT,
+      STORAGE_KEYS.SHOW_TEMPLATES,
+      STORAGE_KEYS.ENABLE_TEXT_EXPANSION,
+      STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS,
+      STORAGE_KEYS.QUICK_SEND_TOGGLE,
+    ];
+    chrome.storage.local.get(keys).then((data) => {
+      setShowSevenDays(data[STORAGE_KEYS.SHOW_SEVEN_DAYS]);
+      setSevenDaysAmount(data[STORAGE_KEYS.SEVEN_DAYS_AMOUNT] ?? 7);
+      setShowTemplates(data[STORAGE_KEYS.SHOW_TEMPLATES]);
+      setEnableTextExpansion(data[STORAGE_KEYS.ENABLE_TEXT_EXPANSION] !== false);
+      setShowTextExpansionAlias(data[STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS] !== false);
+      setQuickSendToggle(data[STORAGE_KEYS.QUICK_SEND_TOGGLE]);
     });
     
     setTimeout(() => {
@@ -49,32 +43,32 @@ const SettingsModal = ({ onClose }) => {
 
   const handleShowTemplatesChange = (event) => {
     setShowTemplates(event.target.checked);
-    chrome.storage.local.set({ showTemplates: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_TEMPLATES]: event.target.checked });
   };
 
   const handleShowSevenDaysChange = (event) => {
     setShowSevenDays(event.target.checked);
-    chrome.storage.local.set({ showSevenDays: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SEVEN_DAYS]: event.target.checked });
   };
 
   const handleSevenDaysAmountChange = (event) => {
     setSevenDaysAmount(event.target.value);
-    chrome.storage.local.set({ sevenDaysAmount: event.target.value });
+    chrome.storage.local.set({ [STORAGE_KEYS.SEVEN_DAYS_AMOUNT]: event.target.value });
   };
 
   const handleEnableTextExpansionChange = (event) => {
     setEnableTextExpansion(event.target.checked);
-    chrome.storage.local.set({ enableTextExpansion: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.ENABLE_TEXT_EXPANSION]: event.target.checked });
   };
 
   const handleQuickSendToggleChange = (event) => {
     setQuickSendToggle(event.target.checked);
-    chrome.storage.local.set({ quickSendToggle: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.QUICK_SEND_TOGGLE]: event.target.checked });
   };
 
   const handleShowTextExpansionAliasChange = (event) => {
     setShowTextExpansionAlias(event.target.checked);
-    chrome.storage.local.set({ showTextExpansionAlias: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS]: event.target.checked });
   };
 
   const handleClose = () => {

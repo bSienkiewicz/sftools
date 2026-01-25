@@ -1,19 +1,20 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "./nest_buttons.css";
+import "../../nest_buttons.css";
+import { STORAGE_KEYS } from "../../constants/storage";
 
 let showSevenDaysReminder = false;
 let daysToCheck = 7;
 let targetTable = null;
 
-const targetTableClass = '.slds-table'
-const lastModifiedColumnAria = 'th[aria-label="Last Modified Date"]'
+const targetTableClass = ".slds-table";
+const lastModifiedColumnAria = 'th[aria-label="Last Modified Date"]';
 
-const debounce = (func, delay) => {
-  let timeout;
+const debounce = (fn, delay) => {
+  let timeoutId;
   return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), delay);
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
   };
 };
 
@@ -70,7 +71,7 @@ const checkForElementsAndRender = () => {
 // Function to observe DOM changes
 const observeDOM = debounce(() => {
   if (!showSevenDaysReminder) return;
-  
+
 
   const newTable = document.querySelector(targetTableClass);
 
@@ -85,9 +86,11 @@ const observeDOM = debounce(() => {
 
 // Check the config in Chrome storage
 const checkConfigOnce = () => {
-  chrome.storage.local.get(["showSevenDays", "sevenDaysAmount"], (result) => {
-    showSevenDaysReminder = result.showSevenDays || false;
-    daysToCheck = result.sevenDaysAmount || 7; // Store value instead of fetching every time
+  chrome.storage.local.get(
+    [STORAGE_KEYS.SHOW_SEVEN_DAYS, STORAGE_KEYS.SEVEN_DAYS_AMOUNT],
+    (result) => {
+      showSevenDaysReminder = result[STORAGE_KEYS.SHOW_SEVEN_DAYS] || false;
+      daysToCheck = Number(result[STORAGE_KEYS.SEVEN_DAYS_AMOUNT]) || 7;
 
     if (showSevenDaysReminder) {
       const observer = new MutationObserver(observeDOM);

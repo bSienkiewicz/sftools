@@ -24,8 +24,9 @@
         "*://*.force.com/*"
       ],
       "js": [
+        "src/content/new-incident/NewIncidentPageDetector.jsx",
         "src/TemplateContent.jsx",
-        "src/SevenDays.jsx"
+        "src/content/seven-days/SevenDays.jsx"
       ],
       "run_at": "document_idle"
     }
