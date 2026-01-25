@@ -126,5 +126,104 @@ function initialSetup() {
   });
 }
 
+// ----- PagerDuty incident title fetch (for New Case: Incident) -----
+const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
+const PD_H1_SELECTOR = 'h1[class^="IncidentTitle_incidentTitle__"]';
+const PD_TITLE_WAIT_MS = 15000;
+
+/** Injected into PagerDuty tab: observes for h1 and sends title back. Args passed so serialization works. */
+function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
+  const send = (title) => {
+    chrome.runtime.sendMessage({ type: "PD_INCIDENT_TITLE_RESULT", tabId, title });
+  };
+
+  const el = document.querySelector(selector);
+  if (el) {
+    send(el.textContent.trim());
+    return;
+  }
+
+  const obs = new MutationObserver(() => {
+    const found = document.querySelector(selector);
+    if (found) {
+      obs.disconnect();
+      clearTimeout(timeoutId);
+      send(found.textContent.trim());
+    }
+  });
+
+  obs.observe(document.body, { childList: true, subtree: true });
+
+  const timeoutId = setTimeout(() => {
+    obs.disconnect();
+    send(null);
+  }, timeoutMs);
+}
+
+const pendingPagerDutyRequests = new Map();
+
+function onPagerDutyTabUpdated(tabId, changeInfo) {
+  if (changeInfo.status !== "complete") return;
+  const pending = pendingPagerDutyRequests.get(tabId);
+  if (!pending) return;
+
+  chrome.scripting
+    .executeScript({
+      target: { tabId },
+      func: observePagerDutyIncidentTitle,
+      args: [tabId, PD_H1_SELECTOR, PD_TITLE_WAIT_MS],
+    })
+    .catch(() => {
+      pendingPagerDutyRequests.delete(tabId);
+      chrome.tabs.remove(tabId).catch(() => {});
+      pending.sendResponse({ ok: false, error: "Failed to run script on PagerDuty page" });
+    });
+}
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  onPagerDutyTabUpdated(tabId, changeInfo);
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action !== "fetchPagerDutyIncidentTitle") return;
+
+  const url = (message.url || "").trim();
+  const senderTabId = sender.tab?.id;
+
+  if (!PD_INCIDENT_URL_REGEX.test(url)) {
+    sendResponse({ ok: false, error: "Invalid URL. Use https://auctane.pagerduty.com/incidents/<14 characters>" });
+    return true;
+  }
+
+  if (senderTabId == null) {
+    sendResponse({ ok: false, error: "Sender tab not found" });
+    return true;
+  }
+
+  chrome.tabs.create({ url, active: false }, (tab) => {
+    if (chrome.runtime.lastError) {
+      sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+      return true;
+    }
+    pendingPagerDutyRequests.set(tab.id, { senderTabId, sendResponse });
+  });
+
+  return true;
+});
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type !== "PD_INCIDENT_TITLE_RESULT") return;
+
+  const { tabId, title } = message;
+  const pending = pendingPagerDutyRequests.get(tabId);
+  pendingPagerDutyRequests.delete(tabId);
+
+  chrome.tabs.remove(tabId).catch(() => {});
+
+  if (pending) {
+    pending.sendResponse({ ok: true, title: title ?? null });
+  }
+});
+
 initialSetup();
 checkForUpdate();

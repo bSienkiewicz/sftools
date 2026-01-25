@@ -1,8 +1,3 @@
-/**
- * Detects when the "New Case: Incident" modal is visible and injects
- * a React UI (input + button) into .form-legend-desktop.
- */
-
 import React from "react";
 import ReactDOM from "react-dom/client";
 import PDIncidentGeneratorControls from "./PDIncidentGeneratorControls";
@@ -13,10 +8,21 @@ const FORM_LEGEND_SELECTOR = ".form-legend-desktop";
 const INJECTED_MARKER = "data-sftools-incident-injected";
 const THROTTLE_MS = 150;
 
+// Form legend is just the header; walk up to find the modal that contains the full form
+function findModalContainer(formLegend) {
+  let el = formLegend?.parentElement;
+  while (el) {
+    if (el.matches?.(".slds-modal, [role='dialog'], .slds-modal__container, [class*='modal']")) {
+      return el;
+    }
+    el = el.parentElement;
+  }
+  return null;
+}
+
 let wasOnNewIncidentPage = false;
 let lastCheck = 0;
 let timeoutId = null;
-/** @type {Map<Element, { root: HTMLElement; reactRoot: import("react-dom/client").Root }>} */
 const injectedRoots = new Map();
 
 function injectFormLegendControls(formLegend) {
@@ -28,9 +34,10 @@ function injectFormLegendControls(formLegend) {
   formLegend.insertBefore(root, formLegend.firstChild);
 
   const reactRoot = ReactDOM.createRoot(root);
+  const modalScope = findModalContainer(formLegend);
   reactRoot.render(
     <React.StrictMode>
-      <PDIncidentGeneratorControls />
+      <PDIncidentGeneratorControls containerElement={root} modalScope={modalScope} />
     </React.StrictMode>,
   );
 
@@ -68,6 +75,7 @@ function checkNewIncidentPage() {
   }
 }
 
+// Throttle: avoid running on every DOM mutation
 function throttledCheck() {
   const now = Date.now();
   if (now - lastCheck < THROTTLE_MS) {

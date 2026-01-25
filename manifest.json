@@ -9,7 +9,11 @@
     "activeTab",
     "tabs",
     "storage",
-    "cookies"
+    "cookies",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://auctane.pagerduty.com/*"
   ],
   "background": { "service_worker": "src/background.js", "type": "module" },
   "icons": {

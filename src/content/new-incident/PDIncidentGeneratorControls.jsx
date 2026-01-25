@@ -1,38 +1,94 @@
 import React from "react";
+import { applyIncidentFormDefaults } from "./selectComboboxOption";
+import { INCIDENT_FORM_DEFAULTS } from "./incidentFormDefaults";
 
-export default function PDIncidentGeneratorControls() {
+const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
+
+export default function PDIncidentGeneratorControls({ containerElement, modalScope }) {
   const [value, setValue] = React.useState("");
+  const [status, setStatus] = React.useState("idle");
 
   const handleApply = (e) => {
     e.preventDefault();
-    console.log("Apply:", value);
+    const url = value.trim();
+
+    if (!PD_INCIDENT_URL_REGEX.test(url)) {
+      setStatus("error");
+      console.warn(
+        "[SF Tools] Invalid PagerDuty URL. Expected: https://auctane.pagerduty.com/incidents/<14 characters>",
+        url,
+      );
+      return;
+    }
+
+    setStatus("loading");
+    const scope = modalScope ?? (containerElement?.closest(".slds-modal") ?? document.body);
+
+    chrome.runtime.sendMessage(
+      { action: "fetchPagerDutyIncidentTitle", url },
+      async (response) => {
+        if (chrome.runtime.lastError) {
+          setStatus("error");
+          console.warn("[SF Tools] PagerDuty fetch failed:", chrome.runtime.lastError.message);
+          return;
+        }
+        setStatus("idle");
+        if (response?.ok && response.title != null) {
+          console.log("[SF Tools] PagerDuty incident title (Salesforce):", response.title);
+          if (INCIDENT_FORM_DEFAULTS.length > 0) {
+            await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
+          }
+        } else if (response?.ok && response.title == null) {
+          console.warn("[SF Tools] PagerDuty incident title not found (timeout or selector mismatch).");
+        } else {
+          console.warn("[SF Tools] PagerDuty fetch error:", response?.error ?? "Unknown error");
+        }
+      },
+    );
+  };
+
+  const handleBuild = () => {
+    const scope = modalScope ?? (containerElement?.closest(".slds-modal") ?? document.body);
+    if (INCIDENT_FORM_DEFAULTS.length > 0) {
+      applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
+    }
   };
 
   return (
-    <form
-      onSubmit={handleApply}
-      className="sftools-incident-legend-actions"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "8px",
-        marginBottom: "12px",
-      }}
-    >
-      <input
-        type="text"
-        placeholder="PagerDuty incident URL"
-        className="slds-input"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        style={{ minWidth: "360px" }}
-      />
-      <button
-        type="submit"
-        className="slds-button slds-button_brand"
+    <div className="sftools-incident-legend-actions" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+      <div style={{ display: "inline-flex", alignItems: "center" }}>
+        <button
+          type="button"
+          className="slds-button slds-button_neutral"
+          onClick={handleBuild}
+        >
+          Build
+        </button>
+      </div>
+      <form
+        onSubmit={handleApply}
+        style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
       >
-        Generate
-      </button>
-    </form>
+        <input
+          type="text"
+          placeholder="PagerDuty incident URL"
+          className="slds-input"
+          value={value}
+          onChange={(e) => {
+            setValue(e.target.value);
+            if (status === "error") setStatus("idle");
+          }}
+          style={{ minWidth: "360px" }}
+          disabled={status === "loading"}
+        />
+        <button
+          type="submit"
+          className="slds-button slds-button_brand"
+          disabled={status === "loading"}
+        >
+          {status === "loading" ? "Loading…" : "Generate"}
+        </button>
+      </form>
+    </div>
   );
 }
