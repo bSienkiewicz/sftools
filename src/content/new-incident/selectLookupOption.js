@@ -1,9 +1,9 @@
 import { normalizeLabelText, querySelectorAllDeep } from "./domUtils";
 
 const LOOKUP_INPUT_SELECTOR = 'input[role="combobox"][type="text"]';
-const POLL_INTERVAL_MS = 300;
-const FIRST_POLL_DELAY_MS = 1000; // give Salesforce time to run search and open list
-const DEFAULT_WAIT_MS = 12000;
+const POLL_INTERVAL_MS = 150;
+const FIRST_POLL_DELAY_MS = 400;
+const DEFAULT_WAIT_MS = 10000;
 
 function findLookupInputByLabel(scope, fieldLabel) {
   const root = scope && scope !== document.body ? scope : document.body;
@@ -60,12 +60,12 @@ export async function selectLookupOption(
 
   input.focus();
   input.click();
-  await new Promise((r) => setTimeout(r, 200));
+  await new Promise((r) => setTimeout(r, 80));
 
   input.value = searchText;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((r) => setTimeout(r, 150));
 
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", keyCode: 40, bubbles: true }));
   input.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowDown", keyCode: 40, bubbles: true }));
@@ -105,7 +105,7 @@ export async function selectLookupOption(
   });
 }
 
-export async function applyIncidentLookupDefaults(scope, defaults, delayBetweenMs = 400) {
+export async function applyIncidentLookupDefaults(scope, defaults, delayBetweenMs = 100) {
   if (!Array.isArray(defaults) || defaults.length === 0) return;
   const root = scope || document.body;
 

@@ -14,7 +14,7 @@ function findVisibleComboboxes(scope) {
   }));
 }
 
-export function selectComboboxOption(scope, fieldLabel, value, openDelayMs = 50) {
+export function selectComboboxOption(scope, fieldLabel, value) {
   if (!fieldLabel || value == null) return Promise.resolve(false);
 
   const root = scope && scope !== document.body ? scope : document.body;
@@ -54,23 +54,23 @@ export function selectComboboxOption(scope, fieldLabel, value, openDelayMs = 50)
       return false;
     };
 
-    // Retry: options can appear after dropdown opens (200ms, 450ms, 700ms)
-    const delays = [200, 450, 700];
+    // Options already in DOM (hidden); poll quickly until list is open
+    const delays = [0, 50, 120];
     let step = 0;
     const run = () => {
       if (trySelect()) return;
       step += 1;
       if (step < delays.length) {
-        setTimeout(run, delays[step] - (step === 1 ? 0 : delays[step - 1]));
+        setTimeout(run, delays[step] - delays[step - 1]);
       } else {
         resolve(false);
       }
     };
-    setTimeout(run, delays[0]);
+    run();
   });
 }
 
-export async function applyIncidentFormDefaults(scope, defaults, delayBetweenMs = 250) {
+export async function applyIncidentFormDefaults(scope, defaults, delayBetweenMs = 50) {
   if (!Array.isArray(defaults) || defaults.length === 0) return;
   const root = scope || document.body;
 
