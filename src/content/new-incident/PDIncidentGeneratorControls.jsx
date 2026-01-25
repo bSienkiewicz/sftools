@@ -1,12 +1,14 @@
 import React from "react";
 import { applyIncidentFormDefaults } from "./selectComboboxOption";
-import { INCIDENT_FORM_DEFAULTS } from "./incidentFormDefaults";
+import { applyIncidentLookupDefaults } from "./selectLookupOption";
+import { INCIDENT_FORM_DEFAULTS, INCIDENT_LOOKUP_DEFAULTS } from "./incidentFormDefaults";
 
 const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
 
 export default function PDIncidentGeneratorControls({ containerElement, modalScope }) {
   const [value, setValue] = React.useState("");
   const [status, setStatus] = React.useState("idle");
+  const [building, setBuilding] = React.useState(false);
 
   const handleApply = (e) => {
     e.preventDefault();
@@ -32,25 +34,35 @@ export default function PDIncidentGeneratorControls({ containerElement, modalSco
           console.warn("[SF Tools] PagerDuty fetch failed:", chrome.runtime.lastError.message);
           return;
         }
-        setStatus("idle");
         if (response?.ok && response.title != null) {
           console.log("[SF Tools] PagerDuty incident title (Salesforce):", response.title);
-          if (INCIDENT_FORM_DEFAULTS.length > 0) {
-            await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
+          try {
+            if (INCIDENT_LOOKUP_DEFAULTS.length > 0) await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+            if (INCIDENT_FORM_DEFAULTS.length > 0) await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
+          } finally {
+            setStatus("idle");
           }
-        } else if (response?.ok && response.title == null) {
-          console.warn("[SF Tools] PagerDuty incident title not found (timeout or selector mismatch).");
         } else {
-          console.warn("[SF Tools] PagerDuty fetch error:", response?.error ?? "Unknown error");
+          setStatus("idle");
+          if (response?.ok && response.title == null) {
+            console.warn("[SF Tools] PagerDuty incident title not found (timeout or selector mismatch).");
+          } else {
+            console.warn("[SF Tools] PagerDuty fetch error:", response?.error ?? "Unknown error");
+          }
         }
       },
     );
   };
 
-  const handleBuild = () => {
-    const scope = modalScope ?? (containerElement?.closest(".slds-modal") ?? document.body);
-    if (INCIDENT_FORM_DEFAULTS.length > 0) {
-      applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
+  const handleBuild = async () => {
+    if (building) return;
+    setBuilding(true);
+    try {
+      const scope = modalScope ?? (containerElement?.closest(".slds-modal") ?? document.body);
+      if (INCIDENT_LOOKUP_DEFAULTS.length > 0) await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+      if (INCIDENT_FORM_DEFAULTS.length > 0) await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
+    } finally {
+      setBuilding(false);
     }
   };
 
@@ -61,8 +73,9 @@ export default function PDIncidentGeneratorControls({ containerElement, modalSco
           type="button"
           className="slds-button slds-button_neutral"
           onClick={handleBuild}
+          disabled={building}
         >
-          Build
+          {building ? "Building…" : "Build"}
         </button>
       </div>
       <form

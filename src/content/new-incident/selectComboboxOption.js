@@ -1,31 +1,6 @@
-function normalizeLabelText(text) {
-  if (text == null || typeof text !== "string") return "";
-  return text.replace(/\s+/g, " ").replace(/^\s*\*?\s*/, "").trim();
-}
+import { normalizeLabelText, querySelectorAllDeep } from "./domUtils";
 
 const COMBOBOX_TRIGGER_SELECTOR = 'button[role="combobox"]';
-
-// Walk DOM + shadow roots (max depth 5) to find all elements matching selector
-function querySelectorAllDeep(root, selector, maxDepth = 5) {
-  const results = [];
-  if (!root) return results;
-
-  function walk(node, depth) {
-    if (depth > maxDepth) return;
-    try {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.matches && node.matches(selector)) results.push(node);
-        for (const child of node.children || []) walk(child, depth);
-        if (node.shadowRoot) walk(node.shadowRoot, depth + 1);
-      } else if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-        for (const child of node.children || []) walk(child, depth);
-      }
-    } catch (_) {}
-  }
-
-  walk(root, 0);
-  return results;
-}
 
 function findVisibleComboboxes(scope) {
   const root = scope && scope !== document.body ? scope : document.body;
