@@ -93,7 +93,7 @@ export default function NewIncidentGeneratorControls({
     }
 
     const POLL_INTERVAL_MS = 300;
-    const POLL_MAX_ATTEMPTS = 15; // ~4.5s total
+    const POLL_MAX_ATTEMPTS = 30; // ~9s total
     let attempts = 0;
 
     const pollForPdUrl = () => {
