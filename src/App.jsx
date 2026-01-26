@@ -2,7 +2,7 @@ import React from "react";
 import "./App.css";
 import { v4 as uuidv4 } from "uuid";
 import { ArrowUp, Plus, Settings } from "lucide-react";
-import EditMessageModal from "./EditMessageModal";
+import EditMessageModal from "./modals/EditMessageModal";
 import { closestCenter, DndContext } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -10,7 +10,10 @@ import {
 } from "@dnd-kit/sortable";
 import { arrayMove } from "@dnd-kit/sortable";
 import SortableItem from "./components/SortableItem";
-import SettingsModal from "./SettingsModal";
+import SettingsModal from "./modals/SettingsModal";
+import { STORAGE_KEYS } from "./constants/storage";
+import { LucideSquareStack } from "lucide-react";
+import BatchAddIncidentsModal from "./modals/BatchAddIncidentsModal";
 
 function App() {
   const [messages, setMessages] = React.useState([]);
@@ -19,6 +22,21 @@ function App() {
   const [settingsVisible, setSettingsVisible] = React.useState(null);
   const [latestVersion, setLatestVersion] = React.useState(null);
   const [updateAvailable, setUpdateAvailable] = React.useState(false);
+  const [newIncidentHelperEnabled, setNewIncidentHelperEnabled] = React.useState(false);
+  const [newIncidentHelperModalVisible, setNewIncidentHelperModalVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE, (result) => {
+      setNewIncidentHelperEnabled(result[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === true);
+    });
+    const listener = (changes, areaName) => {
+      if (areaName === "local" && changes[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]) {
+        setNewIncidentHelperEnabled(changes[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE].newValue === true);
+      }
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, []);
 
   React.useEffect(() => {
     chrome.storage.local.get("button_messages", (result) => {
@@ -201,9 +219,13 @@ function App() {
     });
   };
 
+  const handleAddNewIncidentHelper = () => {
+    setNewIncidentHelperModalVisible(true);
+  };
+
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
-      <h1 className="text-3xl font-bold text-center p-6 shadow">SF Tools</h1>
+      <h1 className="text-3xl font-bold text-center p-6 shadow bg-blue-500 text-white">SF Tools</h1>
 
       <div className="absolute top-1 right-1 flex flex-col">
         {updateAvailable && (
@@ -214,7 +236,7 @@ function App() {
             <ArrowUp size={10} /> Update - {latestVersion}
           </div>
         )}
-        <div className="p-2 flex gap-2 items-center text-[8px] text-gray-400">
+        <div className="p-2 flex gap-2 items-center text-[8px] text-white">
           <button onClick={handleImport}>Import</button>
           <span>/</span>
           <button onClick={handleExport}>Export</button>
@@ -222,7 +244,7 @@ function App() {
       </div>
 
       <div
-        className="absolute top-0 left-0 text-gray-500 p-1 cursor-pointer"
+        className="absolute top-0 left-0 text-white p-1 cursor-pointer"
         onClick={handleShowSettings}
       >
         <Settings size={16} />
@@ -270,6 +292,12 @@ function App() {
             </DndContext>
           </div>
         ))}
+        {newIncidentHelperEnabled && (
+          <button className="flex items-center gap-2 text-white bg-blue-500 rounded-md p-2 w-full" onClick={handleAddNewIncidentHelper}>
+            <LucideSquareStack size={16} />
+            <span>Batch add new PD incidents</span>
+          </button>
+        )}
       </div>
 
       {editingMessage && (
@@ -288,6 +316,13 @@ function App() {
           onClose={() => setSettingsVisible(false)}
         />
       )}
+
+      {newIncidentHelperModalVisible && (
+        <BatchAddIncidentsModal
+          onClose={() => setNewIncidentHelperModalVisible(false)}
+        />
+      )}
+
     </div>
   );
 }
