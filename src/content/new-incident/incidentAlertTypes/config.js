@@ -43,7 +43,7 @@ export const ALERT_TYPES = [
       const display = pipelineSegmentToDisplayName(name);
       return `DM|${display || name}|Failed Pipeline for ${name}`;
     },
-    formOverrides: [],
+    formOverrides: [{ fieldLabel: "Type", value: "System Setup" }],
   },
   {
     id: "dm-failed-transfer",
@@ -87,11 +87,11 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }],
   },
   {
-    id: "dm-route-codes",
-    name: "DM Route Codes",
-    match: { keywords: ["route code", "Missing route code"], prefixPattern: /^DM/ },
-    subjectFormat: "DM|PD|{body}",
-    formOverrides: [{ fieldLabel: "Type", value: "System setup" }],
+    id: "dm-missing-route-codes",
+    name: "DM Missing Route Codes",
+    match: { keywords: ["E15001", "Missing route code"], prefixPattern: /^DM/ },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "System Setup" }],
   },
   {
     id: "dm-web-transaction",

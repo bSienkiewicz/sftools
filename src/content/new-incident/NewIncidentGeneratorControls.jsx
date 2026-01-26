@@ -69,6 +69,9 @@ export default function NewIncidentGeneratorControls({
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
 
+        // Show detected alert immediately so it's visible even if form fill times out
+        setDetectedAlert(caseInfo ? { alertTypeName: caseInfo.alertTypeName } : { fallback: true });
+
         await Promise.race([
           (async () => {
             fillSubjectField(scope, subjectToFill);
@@ -82,8 +85,6 @@ export default function NewIncidentGeneratorControls({
             setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
           ),
         ]);
-
-        setDetectedAlert(caseInfo ? { alertTypeName: caseInfo.alertTypeName } : { fallback: true });
       })();
 
       promise.finally(() => setStatus("idle"));
