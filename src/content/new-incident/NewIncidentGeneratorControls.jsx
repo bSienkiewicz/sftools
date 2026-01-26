@@ -2,14 +2,19 @@ import React from "react";
 import toast from "react-hot-toast";
 import { applyIncidentFormDefaults } from "./selectComboboxOption";
 import { applyIncidentLookupDefaults } from "./selectLookupOption";
-import { formatPagerDutySubject } from "./formatPagerDutySubject";
 import { fillSubjectField, fillDescriptionField } from "./fillSubjectField";
-import { INCIDENT_FORM_DEFAULTS, INCIDENT_LOOKUP_DEFAULTS } from "./incidentFormDefaults";
+import {
+  BASE_FORM_DEFAULTS,
+  getCaseInfoFromPdTitle,
+  INCIDENT_LOOKUP_DEFAULTS,
+} from "./incidentAlertTypes";
 
 const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
 const INVALID_URL_MSG = "Invalid PagerDuty URL";
 const PD_TITLE_NOT_FOUND_MSG =
   "Could not read incident. Sign in to PagerDuty in another tab or check the URL.";
+const FETCH_TITLE_TIMEOUT_MS = 10000; 
+const FILL_FORM_TIMEOUT_MS = 10000;
 
 export default function NewIncidentGeneratorControls({
   containerElement,
@@ -27,46 +32,59 @@ export default function NewIncidentGeneratorControls({
   const runGenerateForUrl = React.useCallback(
     (urlToFetch) => {
       const scope = getScope();
-      const promise = new Promise((resolve, reject) => {
+
+      const fetchTitlePromise = new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
           { action: "fetchPagerDutyIncidentTitle", url: urlToFetch },
-          async (response) => {
+          (response) => {
             if (chrome.runtime.lastError) {
-              setStatus("idle");
               reject("PagerDuty fetch failed. Check that you're signed in to PagerDuty.");
               return;
             }
             if (!response?.ok) {
-              setStatus("idle");
               const msg = response?.error ?? "Request failed";
-              reject(
-                msg.includes("run script") ? PD_TITLE_NOT_FOUND_MSG : msg
-              );
+              reject(msg.includes("run script") ? PD_TITLE_NOT_FOUND_MSG : msg);
               return;
             }
             if (response.title == null) {
-              setStatus("idle");
               reject(PD_TITLE_NOT_FOUND_MSG);
               return;
             }
-            try {
-              const subject = formatPagerDutySubject(response.title);
-              const subjectToFill = subject ?? response.title;
-              fillSubjectField(scope, subjectToFill);
-              fillDescriptionField(scope, urlToFetch);
-              if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
-                await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
-              if (INCIDENT_FORM_DEFAULTS.length > 0)
-                await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
-              setStatus("idle");
-              resolve();
-            } catch (err) {
-              setStatus("idle");
-              reject(typeof err === "string" ? err : err?.message ?? "Failed to fill form");
-            }
+            resolve(response);
           },
         );
       });
+
+      const fetchWithTimeout = Promise.race([
+        fetchTitlePromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject("Fetch timed out. Check the PagerDuty link or try again."), FETCH_TITLE_TIMEOUT_MS),
+        ),
+      ]);
+
+      const fillForm = async (response) => {
+        const caseInfo = getCaseInfoFromPdTitle(response.title);
+        const subjectToFill = caseInfo?.subject ?? response.title;
+        const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
+        fillSubjectField(scope, subjectToFill);
+        fillDescriptionField(scope, urlToFetch);
+        if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
+          await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+        if (formDefaults.length > 0)
+          await applyIncidentFormDefaults(scope, formDefaults);
+      };
+
+      const promise = (async () => {
+        const response = await fetchWithTimeout;
+        await Promise.race([
+          fillForm(response),
+          new Promise((_, reject) =>
+            setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
+          ),
+        ]);
+      })();
+
+      promise.finally(() => setStatus("idle"));
       toast.promise(promise, {
         loading: "Fetching PagerDuty incident…",
         success: "Incident loaded and form filled",
@@ -140,16 +158,20 @@ export default function NewIncidentGeneratorControls({
     resetForm();
     setBuilding(true);
     const scope = getScope();
-    const promise = (async () => {
-      try {
-        if (INCIDENT_LOOKUP_DEFAULTS.length > 0) await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
-        if (INCIDENT_FORM_DEFAULTS.length > 0) await applyIncidentFormDefaults(scope, INCIDENT_FORM_DEFAULTS);
-      } catch (err) {
-        throw typeof err === "string" ? err : err?.message ?? "Failed to fill form";
-      } finally {
-        setBuilding(false);
-      }
+    const fillPromise = (async () => {
+      if (INCIDENT_LOOKUP_DEFAULTS.length > 0) await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+      if (BASE_FORM_DEFAULTS.length > 0) await applyIncidentFormDefaults(scope, BASE_FORM_DEFAULTS);
     })();
+    const promise = Promise.race([
+      fillPromise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
+      ),
+    ]).catch((err) => {
+      throw typeof err === "string" ? err : err?.message ?? "Failed to fill form";
+    });
+    promise.finally(() => setBuilding(false));
+
     toast.promise(promise, {
       loading: "Building form…",
       success: "Form filled",
