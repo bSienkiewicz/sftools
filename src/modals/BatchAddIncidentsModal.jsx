@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const PD_INCIDENT_URL_REGEX = /https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}/g;
 
+const NEW_CASE_BASE_URL = "https://stampsdotcom.lightning.force.com/lightning/o/Case/new?count=1";
+
 function extractPagerDutyUrls(text) {
   if (!text?.trim()) return [];
   const matches = text.match(PD_INCIDENT_URL_REGEX) ?? [];
@@ -25,7 +27,13 @@ const BatchAddIncidentsModal = ({ onClose }) => {
   };
 
   const handleSubmit = () => {
-    // TODO
+    if (detectedUrls.length === 0) return;
+    chrome.runtime.sendMessage({
+      action: "openBatchNewCaseTabs",
+      pdUrls: detectedUrls,
+      newCaseUrl: NEW_CASE_BASE_URL,
+    });
+    onClose(); // close immediately; background opens tabs without sending a response
   };
 
   return (
@@ -60,7 +68,8 @@ const BatchAddIncidentsModal = ({ onClose }) => {
         <button
           type="button"
           onClick={handleSubmit}
-          className="w-full flex items-center justify-center gap-2 text-white bg-blue-500 hover:bg-blue-600 rounded-md px-4 py-2 transition-colors"
+          disabled={detectedUrls.length === 0}
+          className="w-full flex items-center justify-center gap-2 text-white bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-md px-4 py-2 transition-colors"
         >
           Add incidents
         </button>

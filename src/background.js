@@ -192,7 +192,47 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   onPagerDutyTabUpdated(tabId, changeInfo);
 });
 
+// Tab ID → PagerDuty URL for batch-open New Case tabs (Salesforce strips URL params)
+const tabIdToPdUrl = new Map();
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabIdToPdUrl.delete(tabId);
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "openBatchNewCaseTabs") {
+    const pdUrls = Array.isArray(message.pdUrls) ? message.pdUrls : [];
+    const newCaseUrl = message.newCaseUrl || "";
+    if (pdUrls.length === 0 || !newCaseUrl) {
+      sendResponse({ ok: false, error: "Missing pdUrls or newCaseUrl" });
+      return true;
+    }
+    // Reply immediately so popup can close without "message port closed" error; tabs open in background
+    sendResponse({ ok: true });
+    let index = 0;
+    const createNext = () => {
+      if (index >= pdUrls.length) return;
+      const pdUrl = pdUrls[index];
+      index += 1;
+      chrome.tabs.create({ url: newCaseUrl }, (tab) => {
+        if (tab?.id) tabIdToPdUrl.set(tab.id, pdUrl);
+        if (chrome.runtime.lastError) {
+          console.warn("[SF Tools] openBatchNewCaseTabs create failed:", chrome.runtime.lastError.message);
+        }
+        if (index < pdUrls.length) setTimeout(createNext, 60);
+      });
+    };
+    createNext();
+    return true;
+  }
+  // get PagerDuty URL for batch opened tab
+  if (message.action === "getPdUrlForMyTab") {
+    const tabId = sender.tab?.id;
+    const pdUrl = tabId != null ? tabIdToPdUrl.get(tabId) : null;
+    if (pdUrl != null) tabIdToPdUrl.delete(tabId);
+    sendResponse({ url: pdUrl ?? null });
+    return true;
+  }
   if (message.action !== "fetchPagerDutyIncidentTitle") return;
 
   const url = (message.url || "").trim();
