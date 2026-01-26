@@ -1,14 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import PDIncidentGeneratorControls from "./PDIncidentGeneratorControls";
+import NewIncidentGeneratorControls from "./NewIncidentGeneratorControls";
+import { querySelectorAllDeep } from "./domUtils";
+import { STORAGE_KEYS } from "../../constants/storage";
+import { ensureToaster } from "../shared/toaster";
 
 const MODAL_TITLE_SELECTOR = "h2.slds-modal__title";
 const NEW_INCIDENT_TEXT = "New Case: Incident";
 const FORM_LEGEND_SELECTOR = ".form-legend-desktop";
 const INJECTED_MARKER = "data-sftools-incident-injected";
 const THROTTLE_MS = 150;
+const RETRY_DELAYS_MS = [400, 1000]; // retry when enabled but modal not in DOM yet
 
-// Form legend is just the header; walk up to find the modal that contains the full form
+// Walk up to find the modal that contains the full form
 function findModalContainer(formLegend) {
   let el = formLegend?.parentElement;
   while (el) {
@@ -18,6 +22,19 @@ function findModalContainer(formLegend) {
     el = el.parentElement;
   }
   return null;
+}
+
+// Smallest ancestor that contains only this form legend (one tab's content). Ensures we fill
+// fields in the same tab as the clicked Build/Generate, not the first tab in the modal.
+function getTabScope(formLegend) {
+  let el = formLegend;
+  while (el?.parentElement) {
+    const parent = el.parentElement;
+    const legends = querySelectorAllDeep(parent, FORM_LEGEND_SELECTOR);
+    if (legends.length === 1) return parent;
+    el = parent;
+  }
+  return findModalContainer(formLegend) || document.body;
 }
 
 let wasOnNewIncidentPage = false;
@@ -34,45 +51,94 @@ function injectFormLegendControls(formLegend) {
   formLegend.insertBefore(root, formLegend.firstChild);
 
   const reactRoot = ReactDOM.createRoot(root);
-  const modalScope = findModalContainer(formLegend);
+  const modalScope = getTabScope(formLegend);
   reactRoot.render(
     <React.StrictMode>
-      <PDIncidentGeneratorControls containerElement={root} modalScope={modalScope} />
+      <NewIncidentGeneratorControls containerElement={root} modalScope={modalScope} />
     </React.StrictMode>,
   );
 
   injectedRoots.set(formLegend, { root, reactRoot });
 }
 
-function removeFormLegendControls() {
-  injectedRoots.forEach(({ root, reactRoot }, formLegend) => {
+function removeFormLegendControls(formLegend) {
+  const entry = injectedRoots.get(formLegend);
+  if (!entry) return;
+  const { root, reactRoot } = entry;
+  try {
     reactRoot.unmount();
-    root.remove();
-    formLegend.removeAttribute(INJECTED_MARKER);
-  });
-  injectedRoots.clear();
+  } catch (_) {}
+  root.remove();
+  formLegend.removeAttribute(INJECTED_MARKER);
+  injectedRoots.delete(formLegend);
+}
+
+function removeAllFormLegendControls() {
+  for (const formLegend of [...injectedRoots.keys()]) {
+    removeFormLegendControls(formLegend);
+  }
 }
 
 function checkNewIncidentPage() {
   lastCheck = Date.now();
-  const titleEl = document.querySelector(MODAL_TITLE_SELECTOR);
-  const isOnNewIncidentPage =
-    titleEl && titleEl.textContent.trim().includes(NEW_INCIDENT_TEXT);
-
-  if (isOnNewIncidentPage) {
-    if (!wasOnNewIncidentPage) {
-      wasOnNewIncidentPage = true;
-    }
-    const modal = titleEl?.closest(".slds-modal");
-    const scope = modal || document;
-    const formLegend = scope.querySelector(FORM_LEGEND_SELECTOR);
-    if (formLegend) injectFormLegendControls(formLegend);
-  } else {
-    if (wasOnNewIncidentPage) {
-      removeFormLegendControls();
+  chrome.storage.local.get(STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE, (result) => {
+    const raw = result[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE];
+    if (raw === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: false });
+      removeAllFormLegendControls();
       wasOnNewIncidentPage = false;
+      return;
+    }
+    const enabled = raw === true;
+    if (!enabled) {
+      removeAllFormLegendControls();
+      wasOnNewIncidentPage = false;
+      return;
+    }
+    runCheckWithRetry();
+  });
+}
+
+function runCheck() {
+  const allFormLegends = querySelectorAllDeep(document.body, FORM_LEGEND_SELECTOR);
+  const seenFormLegends = new Set();
+
+  for (const formLegend of allFormLegends) {
+    const scope = findModalContainer(formLegend) || document.body;
+    const titlesInScope = querySelectorAllDeep(scope, MODAL_TITLE_SELECTOR);
+    const hasIncidentTitle = titlesInScope.some((el) =>
+      el.textContent.trim().includes(NEW_INCIDENT_TEXT),
+    );
+    if (hasIncidentTitle) {
+      seenFormLegends.add(formLegend);
+      injectFormLegendControls(formLegend);
     }
   }
+
+  const toRemove = [];
+  for (const formLegend of injectedRoots.keys()) {
+    if (!document.contains(formLegend) || !seenFormLegends.has(formLegend)) {
+      toRemove.push(formLegend);
+    }
+  }
+  for (const formLegend of toRemove) {
+    removeFormLegendControls(formLegend);
+  }
+
+  wasOnNewIncidentPage = seenFormLegends.size > 0;
+  return seenFormLegends.size;
+}
+
+function runCheckWithRetry(retryIndex = 0) {
+  const injected = runCheck();
+  if (injected > 0 || retryIndex >= RETRY_DELAYS_MS.length) return;
+  const delay = RETRY_DELAYS_MS[retryIndex];
+  setTimeout(() => {
+    chrome.storage.local.get(STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE, (result) => {
+      if (result[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] !== true) return;
+      runCheckWithRetry(retryIndex + 1);
+    });
+  }, delay);
 }
 
 // Throttle: avoid running on every DOM mutation
@@ -98,6 +164,20 @@ const observer = new MutationObserver(throttledCheck);
 observer.observe(document.body, {
   childList: true,
   subtree: true,
+  attributes: true,
 });
 
-checkNewIncidentPage();
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && changes[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]) {
+    throttledCheck();
+  }
+});
+
+function start() {
+  ensureToaster();
+  checkNewIncidentPage();
+  if (document.readyState !== "complete") {
+    window.addEventListener("load", () => checkNewIncidentPage(), { once: true });
+  }
+}
+start();

@@ -54,8 +54,8 @@ export function selectComboboxOption(scope, fieldLabel, value) {
       return false;
     };
 
-    // Options already in DOM (hidden); poll quickly until list is open
-    const delays = [0, 50, 120];
+    // poll options until list is open, retry with increasing delays
+    const delays = [0, 10, 50, 120];
     let step = 0;
     const run = () => {
       if (trySelect()) return;

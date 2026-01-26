@@ -1,3 +1,5 @@
+import { STORAGE_KEYS } from "./constants/storage";
+
 const uuidv4 = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = (Math.random() * 16) | 0,
@@ -122,6 +124,12 @@ function initialSetup() {
   chrome.storage.local.get("sevenDaysAmount", (result) => {
     if (!result.sevenDaysAmount) {
       chrome.storage.local.set({ sevenDaysAmount: 7 });
+    }
+  });
+
+  chrome.storage.local.get(STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE, (result) => {
+    if (result[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: false });
     }
   });
 }

@@ -12,6 +12,8 @@ export const STORAGE_KEYS = {
   // Seven days highlighting
   SHOW_SEVEN_DAYS: "showSevenDays",
   SEVEN_DAYS_AMOUNT: "sevenDaysAmount",
+  // New Case: Incident helper
+  NEW_INCIDENT_HELPER_TOGGLE: "newIncidentHelperToggle",
   // Other
   INITIALIZED: "initialized",
   UPDATE_AVAILABLE: "update_available",

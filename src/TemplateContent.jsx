@@ -1,9 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
-import "./nest_buttons.css";
-import { Toaster } from "react-hot-toast";
 import { CommentTemplatesRoot } from "./content/comment-templates";
+import { ensureToaster } from "./content/shared/toaster";
 
 const processedElements = new Set();
 
@@ -46,29 +45,6 @@ observer.observe(document.body, {
   attributes: true,
 });
 
-// Function to render Toaster (only once)
-const renderToaster = () => {
-  if (!document.getElementById("crx-toaster")) {
-    const toasterRoot = document.createElement("div");
-    toasterRoot.id = "crx-toaster";
-    document.body.appendChild(toasterRoot);
-
-    ReactDOM.createRoot(toasterRoot).render(
-      <React.StrictMode>
-        <Toaster
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              border: "1px solid #68717a",
-              color: "#000",
-            },
-          }}
-        />
-      </React.StrictMode>
-    );
-  }
-};
-
 // Initial execution
 checkForElementsAndRender();
-renderToaster();
+ensureToaster();

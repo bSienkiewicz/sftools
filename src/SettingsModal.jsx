@@ -17,6 +17,7 @@ const SettingsModal = ({ onClose }) => {
   const [enableTextExpansion, setEnableTextExpansion] = useState(true);
   const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
   const [quickSendToggle, setQuickSendToggle] = useState(false);
+  const [newIncidentHelperToggle, setNewIncidentHelperToggle] = useState(false);
 
   useEffect(() => {
     const keys = [
@@ -26,6 +27,7 @@ const SettingsModal = ({ onClose }) => {
       STORAGE_KEYS.ENABLE_TEXT_EXPANSION,
       STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS,
       STORAGE_KEYS.QUICK_SEND_TOGGLE,
+      STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE,
     ];
     chrome.storage.local.get(keys).then((data) => {
       setShowSevenDays(data[STORAGE_KEYS.SHOW_SEVEN_DAYS]);
@@ -34,6 +36,7 @@ const SettingsModal = ({ onClose }) => {
       setEnableTextExpansion(data[STORAGE_KEYS.ENABLE_TEXT_EXPANSION] !== false);
       setShowTextExpansionAlias(data[STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS] !== false);
       setQuickSendToggle(data[STORAGE_KEYS.QUICK_SEND_TOGGLE]);
+      setNewIncidentHelperToggle(data[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === true);
     });
     
     setTimeout(() => {
@@ -69,6 +72,11 @@ const SettingsModal = ({ onClose }) => {
   const handleShowTextExpansionAliasChange = (event) => {
     setShowTextExpansionAlias(event.target.checked);
     chrome.storage.local.set({ [STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS]: event.target.checked });
+  };
+
+  const handleNewIncidentHelperToggleChange = (event) => {
+    setNewIncidentHelperToggle(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: event.target.checked });
   };
 
   const handleClose = () => {
@@ -162,6 +170,24 @@ const SettingsModal = ({ onClose }) => {
             title="Enable Ctrl+Enter+Enter to save the comment"
           >
             Enable quick send
+            <CircleHelp size={12} className="ml-1 cursor-help" />
+          </label>
+        </div>
+
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="newIncidentHelperToggle"
+            checked={newIncidentHelperToggle}
+            onChange={(e) => handleNewIncidentHelperToggleChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="newIncidentHelperToggle"
+            className="select-none flex items-center"
+            title="Enable New Incident helper on New Case: Incident pages"
+          >
+            Enable New Incident helper
             <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
         </div>

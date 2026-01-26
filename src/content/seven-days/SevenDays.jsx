@@ -1,6 +1,3 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import "../../nest_buttons.css";
 import { STORAGE_KEYS } from "../../constants/storage";
 
 let showSevenDaysReminder = false;
