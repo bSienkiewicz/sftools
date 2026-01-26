@@ -7,7 +7,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { STORAGE_KEYS } from "./constants/storage";
+import { STORAGE_KEYS } from "../constants/storage";
 
 const SettingsModal = ({ onClose }) => {
   const [isVisible, setIsVisible] = useState(false); // State to control visibility
