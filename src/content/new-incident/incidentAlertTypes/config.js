@@ -25,6 +25,7 @@ export const PREFIX_OVERRIDES = {
   hm: "H&M",
   pierceab: "PierceAB",
   jlp: "JLP",
+  michaelkors: "MICHAELKORS",
   mpm4dm01: "MPM4DM01",
   mpm4dm02: "MPM4DM02",
   mpm4dm03: "MPM4DM03",
@@ -113,6 +114,12 @@ export const ALERT_TYPES = [
     match: { keywords: ["Print duration"], prefixPattern: /^Hm$/i },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
+  },
+  {
+    id: "dm-allocation-error-rate",
+    name: "DM Allocation (Error rate)",
+    match: { prefixPattern: /^DM ALL$/ },
+    subjectFormat: "DM ALL|PD|{body}"
   },
   {
     id: "dm-allocation",

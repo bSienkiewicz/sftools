@@ -69,8 +69,12 @@ export default function NewIncidentGeneratorControls({
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
 
-        // Show detected alert immediately so it's visible even if form fill times out
-        setDetectedAlert(caseInfo ? { alertTypeName: caseInfo.alertTypeName } : { fallback: true });
+        // Show detected alert and raw title immediately so they're visible even if form fill times out
+        setDetectedAlert(
+          caseInfo
+            ? { alertTypeName: caseInfo.alertTypeName, rawTitle: response.title }
+            : { fallback: true, rawTitle: response.title },
+        );
 
         await Promise.race([
           (async () => {
@@ -134,20 +138,20 @@ export default function NewIncidentGeneratorControls({
     pollForPdUrl();
   }, [initialPagerDutyUrl, runGenerateForUrl]);
 
-  const resetForm = () => {
+  const resetForm = (opts) => {
     const scope = getScope();
     scope.querySelectorAll(".inline-edit-undo").forEach((input) => {
       input.click();
     });
-    setValue("");
     setStatus("idle");
     setBuilding(false);
     setDetectedAlert(null);
+    if (opts?.keepUrl !== true) setValue("");
   };
 
   const handleApply = (e) => {
     e.preventDefault();
-    resetForm();
+    resetForm({ keepUrl: true });
     const url = value.trim();
     if (!PD_INCIDENT_URL_REGEX.test(url)) {
       toast.error(INVALID_URL_MSG);
@@ -184,7 +188,7 @@ export default function NewIncidentGeneratorControls({
   };
 
   return (
-    <div className="sftools-incident-legend-actions" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
+    <div className="sftools-incident-legend-actions text-left" style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "12px" }}>
       <form
         onSubmit={handleApply}
         style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
@@ -214,10 +218,15 @@ export default function NewIncidentGeneratorControls({
           {status === "loading" ? "Loading…" : "Generate"}
         </button>
       </form>
+      {detectedAlert?.rawTitle != null && (
+        <div className="slds-text-body_small slds-text-color_weak text-xs" style={{ marginTop: "4px" }}>
+          Title: <br/><span className="font-bold">{detectedAlert.rawTitle}</span>
+        </div>
+      )}
       {detectedAlert && (
         <div className="slds-text-body_small slds-text-color_weak" style={{ marginTop: "4px" }}>
           {detectedAlert.alertTypeName
-            ? `Detected alert: ${detectedAlert.alertTypeName}.`
+            ? <>Detected alert: <span className="font-bold">{detectedAlert.alertTypeName}</span>.</>
             : <span className="text-red-500 font-bold">Could not generate Subject - edit manually</span>}
         </div>
       )}

@@ -41,6 +41,7 @@ export function getPrefix(rawTitle) {
     return /[0-9]/.test(seg) ? seg.toUpperCase() : seg.charAt(0).toUpperCase() + seg.slice(1).toLowerCase();
   }
   if (/^Metric\s+query/i.test(rawTitle.trim())) return "DM";
+  if (/^Transaction\s+query/i.test(rawTitle.trim())) return "DM ALL";
   return null;
 }
 
