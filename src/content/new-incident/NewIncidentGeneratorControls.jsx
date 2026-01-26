@@ -24,6 +24,7 @@ export default function NewIncidentGeneratorControls({
   const [value, setValue] = React.useState("");
   const [status, setStatus] = React.useState("idle");
   const [building, setBuilding] = React.useState(false);
+  const [detectedAlert, setDetectedAlert] = React.useState(null); // { alertTypeName } | { fallback: true } after Generate
   const initialUrlConsumed = React.useRef(false);
 
   const getScope = () =>
@@ -62,26 +63,27 @@ export default function NewIncidentGeneratorControls({
         ),
       ]);
 
-      const fillForm = async (response) => {
+      const promise = (async () => {
+        const response = await fetchWithTimeout;
         const caseInfo = getCaseInfoFromPdTitle(response.title);
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
-        fillSubjectField(scope, subjectToFill);
-        fillDescriptionField(scope, urlToFetch);
-        if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
-          await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
-        if (formDefaults.length > 0)
-          await applyIncidentFormDefaults(scope, formDefaults);
-      };
 
-      const promise = (async () => {
-        const response = await fetchWithTimeout;
         await Promise.race([
-          fillForm(response),
+          (async () => {
+            fillSubjectField(scope, subjectToFill);
+            fillDescriptionField(scope, urlToFetch);
+            if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
+              await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+            if (formDefaults.length > 0)
+              await applyIncidentFormDefaults(scope, formDefaults);
+          })(),
           new Promise((_, reject) =>
             setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
           ),
         ]);
+
+        setDetectedAlert(caseInfo ? { alertTypeName: caseInfo.alertTypeName } : { fallback: true });
       })();
 
       promise.finally(() => setStatus("idle"));
@@ -139,6 +141,7 @@ export default function NewIncidentGeneratorControls({
     setValue("");
     setStatus("idle");
     setBuilding(false);
+    setDetectedAlert(null);
   };
 
   const handleApply = (e) => {
@@ -210,6 +213,13 @@ export default function NewIncidentGeneratorControls({
           {status === "loading" ? "Loading…" : "Generate"}
         </button>
       </form>
+      {detectedAlert && (
+        <div className="slds-text-body_small slds-text-color_weak" style={{ marginTop: "4px" }}>
+          {detectedAlert.alertTypeName
+            ? `Detected alert: ${detectedAlert.alertTypeName}.`
+            : <span className="text-red-500 font-bold">Could not generate Subject - edit manually</span>}
+        </div>
+      )}
     </div>
   );
 }

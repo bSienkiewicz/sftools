@@ -46,7 +46,7 @@ export function getCaseInfoFromPdTitle(rawTitle) {
     if (type.rawMatch && type.getSubject && type.rawMatch(trimmed)) {
       const subject = type.getSubject(trimmed);
       if (subject) {
-        return { subject, formDefaults: mergeFormDefaults(type.formOverrides) };
+        return { subject, formDefaults: mergeFormDefaults(type.formOverrides), alertTypeName: type.name };
       }
     }
   }
@@ -73,5 +73,5 @@ export function getCaseInfoFromPdTitle(rawTitle) {
     body: bodyForSubject,
   });
   const formDefaults = mergeFormDefaults(type.formOverrides);
-  return { subject, formDefaults };
+  return { subject, formDefaults, alertTypeName: type.name };
 }
