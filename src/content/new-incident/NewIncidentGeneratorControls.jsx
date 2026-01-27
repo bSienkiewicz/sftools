@@ -155,13 +155,13 @@ export default function NewIncidentGeneratorControls({
 
   const handleApply = (e) => {
     e.preventDefault();
-    resetForm({ keepUrl: true });
     const url = value.trim();
     if (!PD_INCIDENT_URL_REGEX.test(url)) {
       toast.error(INVALID_URL_MSG);
       return;
     }
     setStatus("loading");
+    resetForm({ keepUrl: true });
     runGenerateForUrl(url);
   };
 

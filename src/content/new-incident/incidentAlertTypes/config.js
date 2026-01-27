@@ -13,7 +13,6 @@ import {
 } from "./parse.js";
 
 export const BASE_FORM_DEFAULTS = [
-  { fieldLabel: "Type", value: "Allocation" },
   { fieldLabel: "Team", value: "Support" },
   { fieldLabel: "Severity", value: "3" },
   { fieldLabel: "Carrier module", value: "Unknown" },
@@ -197,6 +196,7 @@ export const ALERT_TYPES = [
       return { body, prefix: "DM ALL", subject: null, carrierModule: null };
     },
     subjectFormat: "DM ALL|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
   {
     id: "dm-allocation",
@@ -207,6 +207,7 @@ export const ALERT_TYPES = [
       return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
     },
     subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
   {
     id: "mpm-allocation",
@@ -217,5 +218,6 @@ export const ALERT_TYPES = [
       return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
     },
     subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
 ];

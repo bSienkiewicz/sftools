@@ -60,12 +60,12 @@ export async function selectLookupOption(
 
   input.focus();
   input.click();
-  await new Promise((r) => setTimeout(r, 80));
+  await new Promise((r) => setTimeout(r, 30));
 
   input.value = searchText;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
-  await new Promise((r) => setTimeout(r, 150));
+  await new Promise((r) => setTimeout(r, 50));
 
   input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", keyCode: 40, bubbles: true }));
   input.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowDown", keyCode: 40, bubbles: true }));
