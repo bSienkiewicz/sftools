@@ -9,8 +9,8 @@ const MODAL_TITLE_SELECTOR = "h2.slds-modal__title";
 const NEW_INCIDENT_TEXT = "New Case: Incident";
 const FORM_LEGEND_SELECTOR = ".form-legend-desktop";
 const INJECTED_MARKER = "data-sftools-incident-injected";
-const THROTTLE_MS = 150;
-const RETRY_DELAYS_MS = [400, 1000]; // retry when enabled but modal not in DOM yet
+
+const processedElements = new Set();
 
 // Walk up to find the modal that contains the full form
 function findModalContainer(formLegend) {
@@ -37,130 +37,69 @@ function getTabScope(formLegend) {
   return findModalContainer(formLegend) || document.body;
 }
 
-let wasOnNewIncidentPage = false;
-let lastCheck = 0;
-let timeoutId = null;
-const injectedRoots = new Map();
-
-function injectFormLegendControls(formLegend) {
-  if (formLegend.getAttribute(INJECTED_MARKER) === "true") return;
-  formLegend.setAttribute(INJECTED_MARKER, "true");
-
-  const root = document.createElement("div");
-  root.className = "sftools-incident-legend-actions";
-  formLegend.insertBefore(root, formLegend.firstChild);
-
-  const reactRoot = ReactDOM.createRoot(root);
-  const modalScope = getTabScope(formLegend);
-  reactRoot.render(
-    <React.StrictMode>
-      <NewIncidentGeneratorControls containerElement={root} modalScope={modalScope} />
-    </React.StrictMode>,
-  );
-
-  injectedRoots.set(formLegend, { root, reactRoot });
+function isNewCasePage() {
+  const url = window.location.href;
+  return /\/lightning\/o\/Case\/new/.test(url);
 }
 
-function removeFormLegendControls(formLegend) {
-  const entry = injectedRoots.get(formLegend);
-  if (!entry) return;
-  const { root, reactRoot } = entry;
-  try {
-    reactRoot.unmount();
-  } catch (_) {}
-  root.remove();
-  formLegend.removeAttribute(INJECTED_MARKER);
-  injectedRoots.delete(formLegend);
-}
+function checkForElementsAndRender() {
+  // Only process on the new case page
+  if (!isNewCasePage()) return;
 
-function removeAllFormLegendControls() {
-  for (const formLegend of [...injectedRoots.keys()]) {
-    removeFormLegendControls(formLegend);
-  }
-}
-
-function checkNewIncidentPage() {
-  lastCheck = Date.now();
+  // Check if feature is enabled
   chrome.storage.local.get(STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE, (result) => {
     const raw = result[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE];
     if (raw === undefined) {
       chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: false });
-      removeAllFormLegendControls();
-      wasOnNewIncidentPage = false;
       return;
     }
-    const enabled = raw === true;
-    if (!enabled) {
-      removeAllFormLegendControls();
-      wasOnNewIncidentPage = false;
-      return;
-    }
-    runCheckWithRetry();
+    if (raw !== true) return;
+
+    const allFormLegends = querySelectorAllDeep(document.body, FORM_LEGEND_SELECTOR);
+
+    allFormLegends.forEach((formLegend) => {
+      // Skip if already processed
+      if (processedElements.has(formLegend) || formLegend.getAttribute(INJECTED_MARKER) === "true") {
+        return;
+      }
+
+      // Check if this form legend is in a modal with "New Case: Incident" title
+      const scope = findModalContainer(formLegend) || document.body;
+      const titlesInScope = querySelectorAllDeep(scope, MODAL_TITLE_SELECTOR);
+      const hasIncidentTitle = titlesInScope.some((el) =>
+        el.textContent.trim().includes(NEW_INCIDENT_TEXT),
+      );
+
+      if (hasIncidentTitle) {
+        formLegend.setAttribute(INJECTED_MARKER, "true");
+        processedElements.add(formLegend);
+
+        const root = document.createElement("div");
+        root.className = "sftools-incident-legend-actions";
+        formLegend.insertBefore(root, formLegend.firstChild);
+
+        const modalScope = getTabScope(formLegend);
+        ReactDOM.createRoot(root).render(
+          <React.StrictMode>
+            <NewIncidentGeneratorControls containerElement={root} modalScope={modalScope} />
+          </React.StrictMode>,
+        );
+      }
+    });
   });
 }
 
-function runCheck() {
-  const allFormLegends = querySelectorAllDeep(document.body, FORM_LEGEND_SELECTOR);
-  const seenFormLegends = new Set();
-
-  for (const formLegend of allFormLegends) {
-    const scope = findModalContainer(formLegend) || document.body;
-    const titlesInScope = querySelectorAllDeep(scope, MODAL_TITLE_SELECTOR);
-    const hasIncidentTitle = titlesInScope.some((el) =>
-      el.textContent.trim().includes(NEW_INCIDENT_TEXT),
-    );
-    if (hasIncidentTitle) {
-      seenFormLegends.add(formLegend);
-      injectFormLegendControls(formLegend);
-    }
-  }
-
-  const toRemove = [];
-  for (const formLegend of injectedRoots.keys()) {
-    if (!document.contains(formLegend) || !seenFormLegends.has(formLegend)) {
-      toRemove.push(formLegend);
-    }
-  }
-  for (const formLegend of toRemove) {
-    removeFormLegendControls(formLegend);
-  }
-
-  wasOnNewIncidentPage = seenFormLegends.size > 0;
-  return seenFormLegends.size;
-}
-
-function runCheckWithRetry(retryIndex = 0) {
-  const injected = runCheck();
-  if (injected > 0 || retryIndex >= RETRY_DELAYS_MS.length) return;
-  const delay = RETRY_DELAYS_MS[retryIndex];
-  setTimeout(() => {
-    chrome.storage.local.get(STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE, (result) => {
-      if (result[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] !== true) return;
-      runCheckWithRetry(retryIndex + 1);
-    });
-  }, delay);
-}
-
-// Throttle: avoid running on every DOM mutation
-function throttledCheck() {
-  const now = Date.now();
-  if (now - lastCheck < THROTTLE_MS) {
-    if (timeoutId == null) {
-      timeoutId = setTimeout(() => {
-        timeoutId = null;
-        checkNewIncidentPage();
-      }, THROTTLE_MS - (now - lastCheck));
-    }
-    return;
-  }
-  if (timeoutId != null) {
+const debounce = (fn, delay) => {
+  let timeoutId;
+  return (...args) => {
     clearTimeout(timeoutId);
-    timeoutId = null;
-  }
-  checkNewIncidentPage();
-}
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+};
 
-const observer = new MutationObserver(throttledCheck);
+const observeDOM = debounce(checkForElementsAndRender, 300);
+
+const observer = new MutationObserver(observeDOM);
 observer.observe(document.body, {
   childList: true,
   subtree: true,
@@ -169,15 +108,15 @@ observer.observe(document.body, {
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "local" && changes[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]) {
-    throttledCheck();
+    checkForElementsAndRender();
   }
 });
 
 function start() {
   ensureToaster();
-  checkNewIncidentPage();
+  checkForElementsAndRender();
   if (document.readyState !== "complete") {
-    window.addEventListener("load", () => checkNewIncidentPage(), { once: true });
+    window.addEventListener("load", () => checkForElementsAndRender(), { once: true });
   }
 }
 start();
