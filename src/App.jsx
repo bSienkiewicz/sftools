@@ -227,6 +227,8 @@ function App() {
     <div className="w-96 h-[600px] flex flex-col relative">
       <h1 className="text-3xl font-bold text-center p-6 shadow bg-blue-500 text-white">SF Tools</h1>
 
+      <div className="absolute bottom-1 right-1 text-gray-300 text-xs">v{chrome.runtime.getManifest().version}</div>
+
       <div className="absolute top-1 right-1 flex flex-col">
         {updateAvailable && (
           <div
@@ -249,8 +251,15 @@ function App() {
       >
         <Settings size={16} />
       </div>
-
+      
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
+        {newIncidentHelperEnabled && (
+          <button className="flex items-center gap-2 text-white bg-blue-500 rounded-md p-2 w-full" onClick={handleAddNewIncidentHelper}>
+            <LucideSquareStack size={16} />
+            <span>Batch add new PD incidents</span>
+          </button>
+        )}
+
         {messages.map((category) => (
           <div key={category.id} className="mt-5 group">
             <div className="flex justify-between items-center mb-2">
@@ -292,12 +301,6 @@ function App() {
             </DndContext>
           </div>
         ))}
-        {newIncidentHelperEnabled && (
-          <button className="flex items-center gap-2 text-white bg-blue-500 rounded-md p-2 w-full" onClick={handleAddNewIncidentHelper}>
-            <LucideSquareStack size={16} />
-            <span>Batch add new PD incidents</span>
-          </button>
-        )}
       </div>
 
       {editingMessage && (

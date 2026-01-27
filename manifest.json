@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SF Tools",
-  "version": "0.4.0",
+  "version": "0.5.0.1",
   "action": {
     "default_popup": "index.html"
   },
@@ -13,7 +13,8 @@
     "scripting"
   ],
   "host_permissions": [
-    "*://auctane.pagerduty.com/*"
+    "*://auctane.pagerduty.com/*",
+    "*://raw.githubusercontent.com/*"
   ],
   "background": { "service_worker": "src/background.js", "type": "module" },
   "icons": {

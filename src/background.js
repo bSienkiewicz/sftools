@@ -55,41 +55,102 @@ function defaultMessagesRender() {
   ];
 }
 
-const checkForUpdate = async () => {
-  // Get current version from the extension's manifest.json
-  const currentVersion = chrome.runtime.getManifest().version;
+// Rate limiting: only check once per hour
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+let isCheckingUpdate = false;
 
-  // Fetch the latest version from GitHub
-  const repoManifestUrl =
-    `https://raw.githubusercontent.com/${GH_USERNAME}/${GH_REPO}/refs/heads/master/manifest.json`;
+function compareVersions(v1, v2) {
+  const parts1 = v1.split(".").map(Number);
+  const parts2 = v2.split(".").map(Number);
+  const maxLength = Math.max(parts1.length, parts2.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    const num1 = parts1[i] || 0;
+    const num2 = parts2[i] || 0;
+    if (num1 < num2) return -1;
+    if (num1 > num2) return 1;
+  }
+  return 0;
+}
+
+const checkForUpdate = async () => {
+  // Prevent concurrent checks
+  if (isCheckingUpdate) return;
+  isCheckingUpdate = true;
 
   try {
-    const response = await fetch(repoManifestUrl);
-    if (!response.ok) {
-      throw new Error("Failed to fetch manifest.json from GitHub");
+    // Check if we've checked recently
+    const lastCheck = await new Promise((resolve) => {
+      chrome.storage.local.get("last_update_check", (result) => {
+        resolve(result.last_update_check || 0);
+      });
+    });
+
+    const now = Date.now();
+    if (now - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
+      isCheckingUpdate = false;
+      return;
     }
 
-    const data = await response.json();
-    const latestVersion = data.version;
+    // Get current version from the extension's manifest.json
+    const currentVersion = chrome.runtime.getManifest().version;
 
-    // Compare versions
-    if (currentVersion !== latestVersion) {
+    // Try main branch first, fallback to master
+    const branches = ["main", "master"];
+    let latestVersion = null;
+    let error = null;
+
+    for (const branch of branches) {
+      try {
+        const repoManifestUrl = `https://raw.githubusercontent.com/${GH_USERNAME}/${GH_REPO}/${branch}/manifest.json`;
+        const response = await fetch(repoManifestUrl);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        latestVersion = data.version;
+        break; // Success, exit loop
+      } catch (err) {
+        error = err;
+        continue; // Try next branch
+      }
+    }
+
+    if (!latestVersion) {
+      // If fetch failed, preserve last known state and log error
+      console.error("Error checking for updates:", error);
+      isCheckingUpdate = false;
+      return;
+    }
+
+    // Update last check timestamp
+    chrome.storage.local.set({ last_update_check: now });
+
+    // Compare versions - only show update if latest > current
+    const versionComparison = compareVersions(latestVersion, currentVersion);
+    console.log(versionComparison);
+    if (versionComparison > 0) {
       console.log(
         `New version available: ${latestVersion}. Current version: ${currentVersion}.`,
       );
       chrome.storage.local.set({
-        latest_version: latestVersion,
-        update_available: true,
+        [STORAGE_KEYS.LATEST_VERSION]: latestVersion,
+        [STORAGE_KEYS.UPDATE_AVAILABLE]: true,
       });
     } else {
       console.log("You have the latest version.");
+      // Only store update_available flag, clear latest_version when up to date
       chrome.storage.local.set({
-        latest_version: latestVersion,
-        update_available: false,
+        [STORAGE_KEYS.UPDATE_AVAILABLE]: false,
       });
+      chrome.storage.local.remove(STORAGE_KEYS.LATEST_VERSION);
     }
   } catch (error) {
     console.error("Error checking for updates:", error);
+  } finally {
+    isCheckingUpdate = false;
   }
 };
 
