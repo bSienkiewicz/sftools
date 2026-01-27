@@ -1,33 +1,12 @@
-/**
- * Parse PD raw titles: quoted body normalization, prefix extraction, and helpers for type-first alerts.
- */
 
+/** Extract the part inside single quotes, or null. */
 export function extractQuotedPart(title) {
   const match = title.match(/'([^']+)'/);
   return match ? match[1].trim() : null;
 }
 
-/**
- * Normalize quoted alert body
- */
-export function normalizeQuotedBody(quoted) {
-  let s = quoted
-    .replace(/\s*\*\*\*CRITICAL\*\*\*\s*-\s*/gi, "") // severity tag
-    .replace(/\s*\*\*\*INFO\*\*\*\s*/gi, "") // severity tag
-    .replace(/\s*-\s*DM\d+\s*-\s*/g, " ") // " - DM02 - " mid-string → space
-    .replace(/\s*PRD\s*-\s*DM\d+\s*/gi, " ") // "PRD - DM5 " etc.
-    .replace(/\s*E\d+\s*/g, " ") // error codes like "E15001 "
-    //.replace(/\s*-\s*SHD\d*\s*-\s*/gi, " ") // " - SHD02 - " / " - SHD - "
-    //.replace(/\s*-\s*SHD\s*-\s*/gi, " ")
-    .trim();
-  s = s.replace(/^(DM\d+\s*-\s*|SHD\d*\s*-\s*|SHD\s*-\s*|HM\d+\s*-\s*)+/i, "").trim(); // Leading New Relic policy IDs only (DM01 -, SHD02 -, HM01 -);
-  s = s.replace(/^DM\s+Native\s+Allocation\s+/i, "").trim(); // leave e.g. "<Carrier> (n) ..."
-  s = s.replace(/^DM\s+Allocation\s+/i, "Allocation ").trim(); // "Allocation <Carrier> ..."
-  s = s.replace(/^DM\s+/i, "").trim(); // any remaining leading "DM "
-  return s || null;
-}
-
-export function getPrefix(rawTitle) {
+/** Prefix from the part before the quote (policy/host/query). */
+export function getPrefixFromRaw(rawTitle) {
   const beforeQuote = rawTitle.split("'")[0] || "";
   const dmCarriers = beforeQuote.match(/DM-CARRIERS-DM(\d)/i);
   if (dmCarriers) return "DM" + dmCarriers[1];
@@ -44,6 +23,75 @@ export function getPrefix(rawTitle) {
   if (/^Transaction\s+query/i.test(rawTitle.trim())) return "DM ALL";
   return null;
 }
+
+// --- Composable body helpers (use in type-specific extract) ---
+
+export function stripSeverity(s) {
+  if (!s) return s;
+  return s
+    .replace(/\s*\*\*\*CRITICAL\*\*\*\s*-\s*/gi, "")
+    .replace(/\s*\*\*\*INFO\*\*\*\s*/gi, "")
+    .trim();
+}
+
+/** Remove leading New Relic pol
+ * icy IDs: DM01 -, SHD02 -, HM01 -, etc. */
+export function stripLeadingPolicyIds(s) {
+  if (!s) return s;
+  return s.replace(/^(DM\d+\s*-\s*|SHD\d*\s*-\s*|SHD\s*-\s*|HM\d+\s*-\s*)+/i, "").trim();
+}
+
+/** Mid-string fragments like " - DM02 - ", "PRD - DM5 ". */
+export function stripMidPolicyFragments(s) {
+  if (!s) return s;
+  return s
+    .replace(/\s*-\s*DM\d+\s*-\s*/g, " ")
+    .replace(/\s*PRD\s*-\s*DM\d+\s*/gi, " ")
+    .trim();
+}
+
+/** Error codes like E15001 (use only when type does not need them in body). */
+export function stripErrorCodes(s) {
+  if (!s) return s;
+  return s.replace(/\s*E\d+\s*/g, " ").trim();
+}
+
+/** "DM Native Allocation ", "DM Allocation " → "Allocation ", trailing "DM ". */
+export function stripDmBodyPrefix(s) {
+  if (!s) return s;
+  let out = s
+    .replace(/^DM\s+Native\s+Allocation\s+/i, "")
+    .replace(/^DM\s+Allocation\s+/i, "Allocation ")
+    .replace(/^DM\s+/i, "")
+    .trim();
+  return out || null;
+}
+
+/**
+ * Light normalization for classification only (keyword matching).
+ * Severity + leading policy IDs so we can match keywords reliably.
+ */
+export function normalizeForMatching(quoted) {
+  if (!quoted) return null;
+  const s = stripLeadingPolicyIds(stripSeverity(quoted));
+  return s || null;
+}
+
+/**
+ * Full body normalization for subject/display when no type-specific logic.
+ * Severity → mid fragments → leading IDs → error codes → DM body prefix.
+ */
+export function normalizeBodyDefault(quoted) {
+  if (!quoted) return null;
+  let s = stripSeverity(quoted);
+  s = stripMidPolicyFragments(s);
+  s = stripLeadingPolicyIds(s);
+  s = stripErrorCodes(s);
+  s = stripDmBodyPrefix(s);
+  return s || null;
+}
+
+// --- Type-first helpers (from raw title) ---
 
 export function getFailedTransferCode(rawTitle) {
   const beforeQuote = rawTitle.split("'")[0] || "";
@@ -77,18 +125,4 @@ export function pipelineSegmentToDisplayName(segment) {
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
-}
-
-export function parsePdTitle(rawTitle) {
-  if (!rawTitle || typeof rawTitle !== "string") return null;
-  const trimmed = rawTitle.trim();
-  if (!trimmed) return null;
-  const quoted = extractQuotedPart(trimmed);
-  if (!quoted) return null;
-  const body = normalizeQuotedBody(quoted);
-  if (!body) return null;
-  const prefix = getPrefix(trimmed);
-  if (prefix == null) return null;
-  const failedTransferCode = getFailedTransferCode(trimmed);
-  return { body, prefix, failedTransferCode };
 }

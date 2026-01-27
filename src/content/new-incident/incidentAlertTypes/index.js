@@ -1,10 +1,4 @@
-/**
- * Incident alert types: single entry point.
- * 1) Try type-first (rawMatch + getSubject).
- * 2) Else parse quoted title and match by body/prefix, then apply template.
- */
-
-import { parsePdTitle, sentenceCase } from "./parse.js";
+import { extractQuotedPart, getPrefixFromRaw, normalizeForMatching, sentenceCase } from "./parse.js";
 import {
   ALERT_TYPES,
   BASE_FORM_DEFAULTS,
@@ -14,64 +8,59 @@ import {
 
 export { BASE_FORM_DEFAULTS, INCIDENT_LOOKUP_DEFAULTS, PREFIX_OVERRIDES, ALERT_TYPES };
 
-function matches(type, parsed) {
-  const { keywords, prefix, prefixPattern } = type.match || {};
-  if (keywords?.length && !keywords.some((kw) => parsed.body.toLowerCase().includes(String(kw).toLowerCase())))
-    return false;
-  if (prefix != null && parsed.prefix !== prefix) return false;
-  if (prefixPattern && !prefixPattern.test(parsed.prefix)) return false;
-  return true;
-}
-
-function applyTemplate(template, parsed) {
+function applyTemplate(template, extracted) {
   return template
-    .replace(/\{body\}/g, parsed.body)
-    .replace(/\{prefix\}/g, parsed.prefix);
+    .replace(/\{body\}/g, extracted.body ?? "")
+    .replace(/\{prefix\}/g, extracted.prefix ?? "");
 }
 
 function mergeFormDefaults(overrides = []) {
   const byLabel = new Map(BASE_FORM_DEFAULTS.map(({ fieldLabel, value }) => [fieldLabel, value]));
-  for (const { fieldLabel, value } of overrides) {
+  for (const { fieldLabel, value } of overrides || []) {
     if (fieldLabel != null) byLabel.set(fieldLabel, value);
   }
   return Array.from(byLabel.entries(), ([fieldLabel, value]) => ({ fieldLabel, value }));
 }
 
+function buildContext(raw) {
+  const quoted = extractQuotedPart(raw);
+  const prefix = getPrefixFromRaw(raw);
+  const bodyForMatch = quoted ? normalizeForMatching(quoted) : null;
+  return { quoted, prefix, bodyForMatch };
+}
+
 export function getCaseInfoFromPdTitle(rawTitle) {
   if (!rawTitle || typeof rawTitle !== "string") return null;
-  const trimmed = rawTitle.trim();
-  if (!trimmed) return null;
+  const raw = rawTitle.trim();
+  if (!raw) return null;
+
+  const context = buildContext(raw);
 
   for (const type of ALERT_TYPES) {
-    if (type.rawMatch && type.getSubject && type.rawMatch(trimmed)) {
-      const subject = type.getSubject(trimmed);
-      if (subject) {
-        return { subject, formDefaults: mergeFormDefaults(type.formOverrides), alertTypeName: type.name };
-      }
-    }
+    if (!type.classify(raw, context)) continue;
+
+    const extracted = type.extract(raw, context);
+    if (!extracted || (extracted.body == null && extracted.subject == null)) continue;
+
+    const displayPrefix =
+      type.id === "failed-transfer"
+        ? (PREFIX_OVERRIDES[extracted.prefix?.toLowerCase()] ?? sentenceCase(extracted.prefix))
+        : (PREFIX_OVERRIDES[extracted.prefix?.toLowerCase()] ?? extracted.prefix);
+
+    const subject =
+      extracted.subject ??
+      (type.subjectFormat
+        ? applyTemplate(type.subjectFormat, { ...extracted, prefix: displayPrefix })
+        : null);
+    if (subject == null) continue;
+
+    return {
+      subject,
+      formDefaults: mergeFormDefaults(type.formOverrides),
+      alertTypeName: type.name,
+      carrierModule: extracted.carrierModule ?? null,
+    };
   }
 
-  const parsed = parsePdTitle(trimmed);
-  if (!parsed) return null;
-
-  const type = ALERT_TYPES.find((t) => !t.rawMatch && matches(t, parsed));
-  if (!type?.subjectFormat) return null;
-
-  let bodyForSubject = parsed.body;
-  if (type.id === "failed-transfer") {
-    bodyForSubject = parsed.failedTransferCode
-      ? "Failed transfer for " + parsed.failedTransferCode
-      : "Failed transfer";
-  }
-  const isFailedTransfer = type.id === "failed-transfer";
-  const displayPrefix = isFailedTransfer
-    ? (PREFIX_OVERRIDES[parsed.prefix.toLowerCase()] ?? sentenceCase(parsed.prefix))
-    : (PREFIX_OVERRIDES[parsed.prefix.toLowerCase()] ?? parsed.prefix);
-  const subject = applyTemplate(type.subjectFormat, {
-    ...parsed,
-    prefix: displayPrefix,
-    body: bodyForSubject,
-  });
-  const formDefaults = mergeFormDefaults(type.formOverrides);
-  return { subject, formDefaults, alertTypeName: type.name };
+  return null;
 }

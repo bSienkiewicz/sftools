@@ -69,11 +69,15 @@ export default function NewIncidentGeneratorControls({
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
 
-        // Show detected alert and raw title immediately so they're visible even if form fill times out
+        // Show detected alert, raw title, and carrier module (when present) immediately
         setDetectedAlert(
           caseInfo
-            ? { alertTypeName: caseInfo.alertTypeName, rawTitle: response.title }
-            : { fallback: true, rawTitle: response.title },
+            ? {
+                alertTypeName: caseInfo.alertTypeName,
+                rawTitle: response.title,
+                carrierModule: caseInfo.carrierModule ?? null,
+              }
+            : { fallback: true, rawTitle: response.title, carrierModule: null },
         );
 
         await Promise.race([
@@ -221,6 +225,11 @@ export default function NewIncidentGeneratorControls({
       {detectedAlert?.rawTitle != null && (
         <div className="slds-text-body_small slds-text-color_weak text-xs" style={{ marginTop: "4px" }}>
           Title: <br/><span className="font-bold">{detectedAlert.rawTitle}</span>
+        </div>
+      )}
+      {detectedAlert?.carrierModule != null && detectedAlert.carrierModule !== "" && (
+        <div className="slds-text-body_small slds-text-color_weak text-xs" style={{ marginTop: "2px" }}>
+          Carrier module: <span className="font-bold">{detectedAlert.carrierModule}</span>
         </div>
       )}
       {detectedAlert && (

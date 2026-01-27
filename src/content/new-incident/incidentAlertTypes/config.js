@@ -1,12 +1,15 @@
-/**
- * Alert type config: form defaults, lookups, prefix overrides, and ALERT_TYPES.
- * Type-first entries use rawMatch + getSubject; quoted-title entries use match + subjectFormat.
- */
-
 import {
   getTrepCarrier,
   getFailedPipelineName,
   pipelineSegmentToDisplayName,
+  getFailedTransferCode,
+  getPrefixFromRaw,
+  normalizeForMatching,
+  normalizeBodyDefault,
+  stripSeverity,
+  stripLeadingPolicyIds,
+  stripMidPolicyFragments,
+  stripDmBodyPrefix,
 } from "./parse.js";
 
 export const BASE_FORM_DEFAULTS = [
@@ -33,104 +36,186 @@ export const PREFIX_OVERRIDES = {
   mpm4dmasos: "MPM4DMASOS",
 };
 
+function hasKeyword(body, keywords) {
+  const lower = (body || "").toLowerCase();
+  return keywords.some((kw) => lower.includes(String(kw).toLowerCase()));
+}
+
 export const ALERT_TYPES = [
   {
     id: "failed-pipeline",
     name: "Failed Pipeline",
-    rawMatch: (raw) => /Failed Pipeline:/i.test(raw),
-    getSubject: (raw) => {
+    classify: (raw) => /Failed Pipeline:/i.test(raw),
+    extract: (raw) => {
       const name = getFailedPipelineName(raw);
       if (!name) return null;
       const display = pipelineSegmentToDisplayName(name);
-      return `DM|${display || name}|Failed Pipeline for ${name}`;
+      const body = display || name;
+      return { body, prefix: "DM", subject: `DM|${body}|Failed Pipeline for ${name}`, carrierModule: null };
     },
     formOverrides: [{ fieldLabel: "Type", value: "System Setup" }],
   },
   {
     id: "dm-failed-transfer",
     name: "DM Failed Transfer",
-    rawMatch: (raw) => /DM-SCHEDULER/.test(raw) && /Failed Transfer/i.test(raw),
-    getSubject: (raw) => {
+    classify: (raw) => /DM-SCHEDULER/.test(raw) && /Failed Transfer/i.test(raw),
+    extract: (raw) => {
       const m = raw.match(/DM-SCHEDULER-DM(\d)/i);
-      const num = m ? m[1] : "";
-      const prefix = "DM" + num;
-      return `${prefix}|<Customer>|PD|Failed Transfer for <Module>`;
+      const prefix = m ? "DM" + m[1] : "DM";
+      return {
+        body: "Failed Transfer",
+        prefix,
+        subject: `${prefix}|<Customer>|PD|Failed Transfer for <Module>`,
+        carrierModule: null,
+      };
     },
     formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }],
   },
   {
     id: "mpm-no-events",
     name: "MPM NoEventsFound",
-    rawMatch: (raw) => /NoEventsFound/i.test(raw) && (/\btrep\b/i.test(raw) || /microservices/i.test(raw)),
-    getSubject: (raw) => {
-      const carrier = getTrepCarrier(raw);
-      const c = carrier || "unknown";
-      return `MP ALL|PD|NoEventsFound for carrier ${c}`;
+    classify: (raw) =>
+      /NoEventsFound/i.test(raw) && (/\btrep\b/i.test(raw) || /microservices/i.test(raw)),
+    extract: (raw) => {
+      const carrier = getTrepCarrier(raw) || "unknown";
+      return {
+        body: `NoEventsFound for carrier ${carrier}`,
+        prefix: "MP ALL",
+        subject: `MP ALL|PD|NoEventsFound for carrier ${carrier}`,
+        carrierModule: null,
+      };
     },
     formOverrides: [{ fieldLabel: "Type", value: "Tracking" }],
   },
   {
     id: "mpm-not-valid-filename",
     name: "MPM NotValidFileName",
-    rawMatch: (raw) => /NotValidFileName/i.test(raw) && (/\btrep\b/i.test(raw) || /microservices/i.test(raw)),
-    getSubject: (raw) => {
-      const carrier = getTrepCarrier(raw);
-      const c = carrier || "unknown";
-      return `MP ALL|PD|NotValidFileName for ${c}`;
+    classify: (raw) =>
+      /NotValidFileName/i.test(raw) && (/\btrep\b/i.test(raw) || /microservices/i.test(raw)),
+    extract: (raw) => {
+      const carrier = getTrepCarrier(raw) || "unknown";
+      return {
+        body: `NotValidFileName for ${carrier}`,
+        prefix: "MP ALL",
+        subject: `MP ALL|PD|NotValidFileName for ${carrier}`,
+        carrierModule: null,
+      };
     },
     formOverrides: [{ fieldLabel: "Type", value: "Tracking" }],
   },
   {
     id: "failed-transfer",
     name: "MPM Failed Transfer",
-    match: { keywords: ["Failed Transfer", "failed transfer", "Edi Failed Transfer"] },
+    classify: (raw, ctx) =>
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Failed Transfer", "failed transfer", "Edi Failed Transfer"]),
+    extract: (raw, ctx) => {
+      const code = getFailedTransferCode(raw);
+      const body = code ? `Failed transfer for ${code}` : "Failed transfer";
+      const prefix = ctx.prefix ?? getPrefixFromRaw(raw);
+      return {
+        body,
+        prefix,
+        subject: null,
+        carrierModule: null,
+      };
+    },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }],
   },
   {
     id: "dm-missing-route-codes",
     name: "DM Missing Route Codes",
-    match: { keywords: ["E15001", "Missing route code"], prefixPattern: /^DM/ },
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^DM/.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["E15001", "Missing route code"]),
+    extract: (raw, ctx) => {
+      let s = stripSeverity(ctx.quoted);
+      s = stripMidPolicyFragments(s);
+      s = stripLeadingPolicyIds(s);
+      s = stripDmBodyPrefix(s);
+      const body = s?.trim() || null;
+      const prefix = ctx.prefix;
+      return { body, prefix, subject: null, carrierModule: null };
+    },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Setup" }],
   },
   {
     id: "dm-web-transaction",
     name: "DM Web Transaction",
-    match: { keywords: ["High Web Transaction Time", "Web Transaction Time"], prefixPattern: /^DM/ },
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^DM/.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["High Web Transaction Time", "Web Transaction Time"]),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: "DM", subject: null, carrierModule: null };
+    },
     subjectFormat: "DM|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
   {
     id: "mpm-error90",
     name: "MPM Error90",
-    match: { keywords: ["Error rate above 90%", "90% of requests"], prefixPattern: /^[A-Z]/ },
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^[A-Z]/.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Error rate above 90%", "90% of requests"]),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
   {
     id: "hm-print-duration",
     name: "HM PrintDuration",
-    match: { keywords: ["Print duration"], prefixPattern: /^Hm$/i },
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^Hm$/i.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Print duration"]),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
   {
     id: "dm-allocation-error-rate",
     name: "DM Allocation (Error rate)",
-    match: { prefixPattern: /^DM ALL$/ },
-    subjectFormat: "DM ALL|PD|{body}"
+    classify: (raw, ctx) => ctx?.prefix != null && /^DM ALL$/.test(ctx.prefix),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: "DM ALL", subject: null, carrierModule: null };
+    },
+    subjectFormat: "DM ALL|PD|{body}",
   },
   {
     id: "dm-allocation",
     name: "DM Allocation",
-    match: { prefixPattern: /^DM\d*$/ },
+    classify: (raw, ctx) => ctx?.prefix != null && /^DM\d*$/.test(ctx.prefix),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
     subjectFormat: "{prefix}|PD|{body}",
   },
   {
     id: "mpm-allocation",
     name: "MPM Allocation",
-    match: {},
+    classify: (raw, ctx) => ctx?.quoted != null && ctx?.prefix != null,
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
     subjectFormat: "{prefix}|PD|{body}",
   },
 ];
