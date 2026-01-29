@@ -113,20 +113,21 @@ export default function NewIncidentGeneratorControls({
       initialUrlConsumed.current = true;
       setStatus("loading");
       
-      // Fill the PD URL input if there is single PD URL
-      if (groupInfo.pdUrls.length === 1) {
-        setValue(groupInfo.pdUrls.join("\n"));
-      }
+      // Fill the PD URL input (one per line when multiple)
+      setValue(groupInfo.pdUrls.join("\n"));
       
       const scope = getScope();
       const subjectToFill = groupInfo.subject;
       const formDefaults = groupInfo.formDefaults ?? BASE_FORM_DEFAULTS;
       const descriptionToFill = groupInfo.pdUrls.join("\n");
       
-      // Show detected alert only
+      // Show detected alert and raw title(s) from batch
+      const rawTitleDisplay = groupInfo.rawTitles?.length
+        ? groupInfo.rawTitles.join("\n")
+        : null;
       setDetectedAlert({
         alertTypeName: groupInfo.alertTypeName ?? null,
-        rawTitle: null,
+        rawTitle: rawTitleDisplay,
         carrierModule: null,
       });
       

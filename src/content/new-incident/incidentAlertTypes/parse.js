@@ -14,7 +14,8 @@ export function getPrefixFromRaw(rawTitle) {
   if (dmScheduler) return "DM" + dmScheduler[1];
   const mpSegment = beforeQuote.match(/_MP_([A-Za-z0-9]+)_/);
   if (mpSegment) return mpSegment[1].toUpperCase();
-  const hostSegment = rawTitle.match(/^([a-zA-Z0-9]+)\.(?:mpm\.metapack\.(?:net|com)|taxipost\.be|dhl\.com)/i);
+  // Prefix = everything before the first dot (e.g. hermes, mpm4dm01, hm, cycleon)
+  const hostSegment = rawTitle.match(/^([a-zA-Z0-9]+)\./);
   if (hostSegment) {
     const seg = hostSegment[1];
     return /[0-9]/.test(seg) ? seg.toUpperCase() : seg.charAt(0).toUpperCase() + seg.slice(1).toLowerCase();

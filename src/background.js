@@ -209,7 +209,7 @@ function initialSetup() {
 }
 
 // ----- PagerDuty incident title fetch (for New Case: Incident) -----
-const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
+const PD_INCIDENT_URL_REGEX = /^https?:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
 const PD_H1_SELECTOR = 'h1[class^="IncidentTitle_incidentTitle__"]';
 const PD_TITLE_WAIT_MS = 30000;
 
@@ -320,9 +320,12 @@ function groupAlertsBySubject(results) {
         formDefaults: caseInfo?.formDefaults ?? [],
         alertTypeName: caseInfo?.alertTypeName ?? null,
         pdUrls: [],
+        rawTitles: [],
       });
     }
-    groups.get(key).pdUrls.push(url);
+    const g = groups.get(key);
+    g.pdUrls.push(url);
+    g.rawTitles.push(title);
   }
   
   return Array.from(groups.values());
@@ -403,6 +406,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               formDefaults: group.formDefaults,
               alertTypeName: group.alertTypeName,
               pdUrls: group.pdUrls,
+              rawTitles: group.rawTitles || [],
             }));
           }
           
