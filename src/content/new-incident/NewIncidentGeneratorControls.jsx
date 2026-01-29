@@ -74,6 +74,7 @@ export default function NewIncidentGeneratorControls({
       const promise = (async () => {
         const response = await fetchWithTimeout;
         if (runId !== generateRunId.current) return;
+        console.log("[SF Tools] Failed transfer targets:", response.targets != null ? response.targets : "(not available)");
         const caseInfo = getCaseInfoFromPdTitle(response.title);
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
@@ -123,7 +124,7 @@ export default function NewIncidentGeneratorControls({
   );
 
   const applyBatchFill = React.useCallback(
-    (title, url) => {
+    (title, url, targets) => {
       setValue((prev) => prev || url || "");
       toast.dismiss("pd-batch-fill");
       if (title == null) {
@@ -131,6 +132,7 @@ export default function NewIncidentGeneratorControls({
         toast.error(PD_TITLE_BATCH_FAIL_MSG);
         return;
       }
+      console.log("[SF Tools] Failed transfer targets:", targets != null ? targets : "(not available)");
       const scope = getScope();
       const caseInfo = getCaseInfoFromPdTitle(title);
       const subjectToFill = caseInfo?.subject ?? title;
@@ -183,7 +185,7 @@ export default function NewIncidentGeneratorControls({
       chrome.runtime.sendMessage({ action: "getPendingFillForMyTab" }, (data) => {
         if (data && (data.title != null || data.url)) {
           setBatchWaitingForFill(false);
-          applyBatchFill(data.title ?? null, data.url ?? "");
+          applyBatchFill(data.title ?? null, data.url ?? "", data.targets ?? null);
         }
       });
     }, BATCH_FILL_POLL_MS);
