@@ -13,8 +13,12 @@ const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a
 const INVALID_URL_MSG = "Invalid PagerDuty URL";
 const PD_TITLE_NOT_FOUND_MSG =
   "Could not read incident. Sign in to PagerDuty in another tab or check the URL.";
-const FETCH_TITLE_TIMEOUT_MS = 10000; 
-const FILL_FORM_TIMEOUT_MS = 10000;
+const PD_TITLE_BATCH_FAIL_MSG =
+  "Could not read incident (tab may need to be visible). Sign in to PagerDuty or try again.";
+const FETCH_TIMEOUT_MSG = "Fetch timed out. Check the PagerDuty link or try again.";
+const FILL_TIMEOUT_MSG = "Form filling timed out. The page may be slow; try again.";
+const FETCH_TITLE_TIMEOUT_MS = 15000;
+const FILL_FORM_TIMEOUT_MS = 12000;
 
 export default function NewIncidentGeneratorControls({
   containerElement,
@@ -26,6 +30,8 @@ export default function NewIncidentGeneratorControls({
   const [building, setBuilding] = React.useState(false);
   const [detectedAlert, setDetectedAlert] = React.useState(null); // { alertTypeName } | { fallback: true } after Generate
   const initialUrlConsumed = React.useRef(false);
+  const generateRunId = React.useRef(0);
+  const [batchWaitingForFill, setBatchWaitingForFill] = React.useState(false);
 
   const getScope = () =>
     modalScope ?? containerElement?.closest(".slds-modal") ?? document.body;
@@ -33,11 +39,13 @@ export default function NewIncidentGeneratorControls({
   const runGenerateForUrl = React.useCallback(
     (urlToFetch) => {
       const scope = getScope();
+      const runId = (generateRunId.current += 1);
 
       const fetchTitlePromise = new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
           { action: "fetchPagerDutyIncidentTitle", url: urlToFetch },
           (response) => {
+            if (runId !== generateRunId.current) return; // Ignore late response (e.g. after timeout)
             if (chrome.runtime.lastError) {
               reject("PagerDuty fetch failed. Check that you're signed in to PagerDuty.");
               return;
@@ -59,17 +67,17 @@ export default function NewIncidentGeneratorControls({
       const fetchWithTimeout = Promise.race([
         fetchTitlePromise,
         new Promise((_, reject) =>
-          setTimeout(() => reject("Fetch timed out. Check the PagerDuty link or try again."), FETCH_TITLE_TIMEOUT_MS),
+          setTimeout(() => reject(new Error(FETCH_TIMEOUT_MSG)), FETCH_TITLE_TIMEOUT_MS),
         ),
       ]);
 
       const promise = (async () => {
         const response = await fetchWithTimeout;
+        if (runId !== generateRunId.current) return;
         const caseInfo = getCaseInfoFromPdTitle(response.title);
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
 
-        // Show detected alert, raw title, and carrier module (when present) immediately
         setDetectedAlert(
           caseInfo
             ? {
@@ -90,69 +98,100 @@ export default function NewIncidentGeneratorControls({
               await applyIncidentFormDefaults(scope, formDefaults);
           })(),
           new Promise((_, reject) =>
-            setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
+            setTimeout(() => reject(new Error(FILL_TIMEOUT_MSG)), FILL_FORM_TIMEOUT_MS),
           ),
         ]);
       })();
 
-      promise.finally(() => setStatus("idle"));
-      toast.promise(promise, {
-        loading: "Fetching PagerDuty incident…",
-        success: "Incident loaded and form filled",
-        error: (err) => (typeof err === "string" ? err : err?.message) ?? "Failed to fetch incident",
-      });
+      promise
+        .then(() => {
+          if (runId === generateRunId.current) toast.success("Incident loaded and form filled");
+        })
+        .catch((err) => {
+          if (runId === generateRunId.current) {
+            const msg = err?.message ?? (typeof err === "string" ? err : "Failed to fetch incident");
+            toast.error(msg);
+          }
+        })
+        .finally(() => {
+          if (runId === generateRunId.current) setStatus("idle");
+        });
+      toast.loading("Fetching PagerDuty incident…", { id: "pd-fetch" });
+      promise.finally(() => toast.dismiss("pd-fetch"));
     },
     [modalScope, containerElement],
   );
 
+  const applyBatchFill = React.useCallback(
+    (title, url) => {
+      setValue((prev) => prev || url || "");
+      toast.dismiss("pd-batch-fill");
+      if (title == null) {
+        setStatus("idle");
+        toast.error(PD_TITLE_BATCH_FAIL_MSG);
+        return;
+      }
+      const scope = getScope();
+      const caseInfo = getCaseInfoFromPdTitle(title);
+      const subjectToFill = caseInfo?.subject ?? title;
+      const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
+      setDetectedAlert(
+        caseInfo
+          ? { alertTypeName: caseInfo.alertTypeName, rawTitle: title, carrierModule: caseInfo.carrierModule ?? null }
+          : { fallback: true, rawTitle: title, carrierModule: null },
+      );
+      toast.loading("Filling form from PagerDuty…", { id: "pd-batch-fill" });
+      const fillPromise = Promise.race([
+        (async () => {
+          fillSubjectField(scope, subjectToFill);
+          fillDescriptionField(scope, url || "");
+          if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
+            await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+          if (formDefaults.length > 0) await applyIncidentFormDefaults(scope, formDefaults);
+        })(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(FILL_TIMEOUT_MSG)), FILL_FORM_TIMEOUT_MS),
+        ),
+      ]);
+      fillPromise
+        .then(() => {
+          toast.success("Incident loaded and form filled", { id: "pd-batch-fill" });
+        })
+        .catch((err) => {
+          const msg = err?.message ?? (typeof err === "string" ? err : "Failed to fill form");
+          toast.error(msg, { id: "pd-batch-fill" });
+        })
+        .finally(() => setStatus("idle"));
+    },
+    [modalScope, containerElement],
+  );
+
+  // Poll for pending batch fill (data stored by background when PD title is ready)
+  const BATCH_FILL_POLL_MS = 500;
+  const BATCH_FILL_POLL_MAX = 240; // 2 min
+  React.useEffect(() => {
+    if (!batchWaitingForFill) return;
+    let attempts = 0;
+    const id = setInterval(() => {
+      attempts += 1;
+      if (attempts > BATCH_FILL_POLL_MAX) {
+        setBatchWaitingForFill(false);
+        setStatus("idle");
+        toast.error(PD_TITLE_BATCH_FAIL_MSG);
+        return;
+      }
+      chrome.runtime.sendMessage({ action: "getPendingFillForMyTab" }, (data) => {
+        if (data && (data.title != null || data.url)) {
+          setBatchWaitingForFill(false);
+          applyBatchFill(data.title ?? null, data.url ?? "");
+        }
+      });
+    }, BATCH_FILL_POLL_MS);
+    return () => clearInterval(id);
+  }, [batchWaitingForFill, applyBatchFill]);
+
   React.useEffect(() => {
     if (initialUrlConsumed.current) return;
-
-    const runForGroupInfo = (groupInfo) => {
-      if (!groupInfo) return;
-      initialUrlConsumed.current = true;
-      setStatus("loading");
-      
-      // Fill the PD URL input (one per line when multiple)
-      setValue(groupInfo.pdUrls.join("\n"));
-      
-      const scope = getScope();
-      const subjectToFill = groupInfo.subject;
-      const formDefaults = groupInfo.formDefaults ?? BASE_FORM_DEFAULTS;
-      const descriptionToFill = groupInfo.pdUrls.join("\n");
-      
-      // Show detected alert and raw title(s) from batch
-      const rawTitleDisplay = groupInfo.rawTitles?.length
-        ? groupInfo.rawTitles.join("\n")
-        : null;
-      setDetectedAlert({
-        alertTypeName: groupInfo.alertTypeName ?? null,
-        rawTitle: rawTitleDisplay,
-        carrierModule: null,
-      });
-      
-      const fillPromise = (async () => {
-        fillSubjectField(scope, subjectToFill);
-        fillDescriptionField(scope, descriptionToFill);
-        if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
-          await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
-        if (formDefaults.length > 0)
-          await applyIncidentFormDefaults(scope, formDefaults);
-      })();
-      
-      Promise.race([
-        fillPromise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
-        ),
-      ]).finally(() => setStatus("idle"));
-      
-      toast.promise(fillPromise, {
-        loading: "Filling form with grouped alerts…",
-        success: "Form filled",
-        error: (err) => (typeof err === "string" ? err : err?.message) ?? "Failed to fill form",
-      });
-    };
 
     const runForUrl = (urlToFetch) => {
       if (!urlToFetch || !PD_INCIDENT_URL_REGEX.test(urlToFetch.trim())) return;
@@ -176,12 +215,15 @@ export default function NewIncidentGeneratorControls({
       attempts += 1;
       chrome.runtime.sendMessage({ action: "getPdUrlForMyTab" }, (response) => {
         if (initialUrlConsumed.current) return;
-        if (response?.groupInfo) {
-          runForGroupInfo(response.groupInfo);
-          return;
-        }
-        if (response?.url) {
-          runForUrl(response.url);
+        if (response?.url != null) {
+          if (response.batch === true) {
+            initialUrlConsumed.current = true;
+            setValue(response.url);
+            setStatus("loading");
+            setBatchWaitingForFill(true);
+          } else {
+            runForUrl(response.url);
+          }
           return;
         }
         if (attempts < POLL_MAX_ATTEMPTS) {

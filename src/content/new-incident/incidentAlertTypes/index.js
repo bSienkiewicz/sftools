@@ -6,7 +6,7 @@ import {
   PREFIX_OVERRIDES,
 } from "./config.js";
 
-export { BASE_FORM_DEFAULTS, INCIDENT_LOOKUP_DEFAULTS, PREFIX_OVERRIDES, ALERT_TYPES };
+export { BASE_FORM_DEFAULTS, INCIDENT_LOOKUP_DEFAULTS };
 
 function applyTemplate(template, extracted) {
   return template
