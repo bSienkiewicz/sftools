@@ -27,6 +27,7 @@ export const PREFIX_OVERRIDES = {
   hm: "H&M",
   pierceab: "PierceAB",
   jlp: "JLP",
+  cycleon: "Cycleon",
   michaelkors: "MICHAELKORS",
   mpm4dm01: "MPM4DM01",
   mpm4dm02: "MPM4DM02",
@@ -188,8 +189,39 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
   {
+    id: "dm-duration",
+    name: "DM Duration (System Performance)",
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^DM\d+$/.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Average Duration"]),
+    extract: (raw, ctx) => {
+      let body = normalizeBodyDefault(ctx.quoted);
+      if (body) body = body.replace(/^Allocation\s+/i, "").trim() || body;
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
+  },
+  {
+    id: "dm-allocation-error-percentage",
+    name: "DM Allocation (Error Percentage)",
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^DM\d+$/.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Error Percentage"]),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
+  },
+  {
     id: "dm-allocation-error-rate",
-    name: "DM Allocation (Error rate)",
+    name: "DM Allocation (Error Rate)",
     classify: (raw, ctx) => ctx?.prefix != null && /^DM ALL$/.test(ctx.prefix),
     extract: (raw, ctx) => {
       const body = normalizeBodyDefault(ctx.quoted);
@@ -199,37 +231,11 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
   {
-    id: "dm-duration",
-    name: "DM Duration (System Performance)",
-    classify: (raw, ctx) =>
-      ctx?.prefix != null &&
-      /^DM\d+$/.test(ctx.prefix) &&
-      ctx?.bodyForMatch != null &&
-      hasKeyword(ctx.bodyForMatch, ["Average Duration"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
-    },
-    subjectFormat: "{prefix}|PD|{body}",
-    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
-  },
-  {
-    id: "dm-allocation",
-    name: "DM Allocation (Error Rate)",
-    classify: (raw, ctx) => ctx?.prefix != null && /^DM\d*$/.test(ctx.prefix),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
-    },
-    subjectFormat: "{prefix}|PD|{body}",
-    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
-  },
-  {
     id: "mpm-duration",
     name: "MPM Duration (System Performance)",
     classify: (raw, ctx) =>
       ctx?.prefix != null &&
-      /^MPM4DM/i.test(ctx.prefix) &&
+      !/^DM/i.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["PrintParcel Duration", "Increased PrintParcel Duration"]),
     extract: (raw, ctx) => {
@@ -244,7 +250,7 @@ export const ALERT_TYPES = [
     name: "MPM Allocation (Error Rate)",
     classify: (raw, ctx) =>
       ctx?.prefix != null &&
-      /^MPM4DM/i.test(ctx.prefix) &&
+      !/^DM/i.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["Increased Error Rate"]),
     extract: (raw, ctx) => {

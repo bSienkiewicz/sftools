@@ -8,7 +8,8 @@
     "build": "vite build",
     "postbuild": "node set-dynamic-url.cjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:classify": "node src/content/new-incident/incidentAlertTypes/classification.test.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

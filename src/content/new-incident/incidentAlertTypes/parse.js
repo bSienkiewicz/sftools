@@ -32,14 +32,15 @@ export function stripSeverity(s) {
   return s
     .replace(/\s*\*\*\*CRITICAL\*\*\*\s*-\s*/gi, "")
     .replace(/\s*\*\*\*INFO\*\*\*\s*/gi, "")
-    .trim();
+    .replace(/\s*\*\*\*[A-Za-z]+\*\*\*\s*/gi, " ") // mid-string e.g. ***Critical***
+    .trim()
+    .replace(/\s+/g, " ");
 }
 
-/** Remove leading New Relic pol
- * icy IDs: DM01 -, SHD02 -, HM01 -, etc. */
+/** Remove leading New Relic policy IDs: DM01 -, SHD02 -, HM01 -, JLP01 -, etc. */
 export function stripLeadingPolicyIds(s) {
   if (!s) return s;
-  return s.replace(/^(DM\d+\s*-\s*|SHD\d*\s*-\s*|SHD\s*-\s*|HM\d+\s*-\s*)+/i, "").trim();
+  return s.replace(/^(DM\d+\s*-\s*|SHD\d*\s*-\s*|SHD\s*-\s*|HM\d+\s*-\s*|JLP\d*\s*-\s*)+/i, "").trim();
 }
 
 /** Mid-string fragments like " - DM02 - ", "PRD - DM5 ". */
