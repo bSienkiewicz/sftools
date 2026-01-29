@@ -199,8 +199,23 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
   {
+    id: "dm-duration",
+    name: "DM Duration (System Performance)",
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^DM\d+$/.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Average Duration"]),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
+  },
+  {
     id: "dm-allocation",
-    name: "DM Allocation",
+    name: "DM Allocation (Error Rate)",
     classify: (raw, ctx) => ctx?.prefix != null && /^DM\d*$/.test(ctx.prefix),
     extract: (raw, ctx) => {
       const body = normalizeBodyDefault(ctx.quoted);
@@ -210,14 +225,33 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
   {
-    id: "mpm-allocation",
-    name: "MPM Allocation",
-    classify: (raw, ctx) => ctx?.quoted != null && ctx?.prefix != null,
+    id: "mpm-duration",
+    name: "MPM Duration (System Performance)",
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^MPM4DM/i.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["PrintParcel Duration", "Increased PrintParcel Duration"]),
+    extract: (raw, ctx) => {
+      const body = normalizeBodyDefault(ctx.quoted);
+      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
+    },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
+  },
+  {
+    id: "mpm-allocation-error-rate",
+    name: "MPM Allocation (Error Rate)",
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      /^MPM4DM/i.test(ctx.prefix) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Increased Error Rate"]),
     extract: (raw, ctx) => {
       const body = normalizeBodyDefault(ctx.quoted);
       return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
     },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
-  },
+  }
 ];
