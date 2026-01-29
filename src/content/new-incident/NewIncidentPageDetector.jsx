@@ -24,8 +24,7 @@ function findModalContainer(formLegend) {
   return null;
 }
 
-// Smallest ancestor that contains only this form legend (one tab's content). Ensures we fill
-// fields in the same tab as the clicked Build/Generate, not the first tab in the modal.
+// Smallest ancestor that contains only this form legend.
 function getTabScope(formLegend) {
   let el = formLegend;
   while (el?.parentElement) {

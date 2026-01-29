@@ -14,6 +14,8 @@ export const STORAGE_KEYS = {
   SEVEN_DAYS_AMOUNT: "sevenDaysAmount",
   // New Case: Incident helper
   NEW_INCIDENT_HELPER_TOGGLE: "newIncidentHelperToggle",
+  AUTO_CLOSE_PD_PAGES: "autoClosePdPages",
+  BATCH_TAB_GROUPING: "batchTabGrouping",
   // Other
   INITIALIZED: "initialized",
   UPDATE_AVAILABLE: "update_available",

@@ -18,6 +18,8 @@ const SettingsModal = ({ onClose }) => {
   const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
   const [quickSendToggle, setQuickSendToggle] = useState(false);
   const [newIncidentHelperToggle, setNewIncidentHelperToggle] = useState(false);
+  const [autoClosePdPages, setAutoClosePdPages] = useState(false);
+  const [batchTabGrouping, setBatchTabGrouping] = useState(false);
 
   useEffect(() => {
     const keys = [
@@ -28,6 +30,8 @@ const SettingsModal = ({ onClose }) => {
       STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS,
       STORAGE_KEYS.QUICK_SEND_TOGGLE,
       STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE,
+      STORAGE_KEYS.AUTO_CLOSE_PD_PAGES,
+      STORAGE_KEYS.BATCH_TAB_GROUPING,
     ];
     chrome.storage.local.get(keys).then((data) => {
       setShowSevenDays(data[STORAGE_KEYS.SHOW_SEVEN_DAYS]);
@@ -37,6 +41,8 @@ const SettingsModal = ({ onClose }) => {
       setShowTextExpansionAlias(data[STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS] !== false);
       setQuickSendToggle(data[STORAGE_KEYS.QUICK_SEND_TOGGLE]);
       setNewIncidentHelperToggle(data[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === true);
+      setAutoClosePdPages(data[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true);
+      setBatchTabGrouping(data[STORAGE_KEYS.BATCH_TAB_GROUPING] === true);
     });
     
     setTimeout(() => {
@@ -77,6 +83,16 @@ const SettingsModal = ({ onClose }) => {
   const handleNewIncidentHelperToggleChange = (event) => {
     setNewIncidentHelperToggle(event.target.checked);
     chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: event.target.checked });
+  };
+
+  const handleAutoClosePdPagesChange = (event) => {
+    setAutoClosePdPages(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.AUTO_CLOSE_PD_PAGES]: event.target.checked });
+  };
+
+  const handleBatchTabGroupingChange = (event) => {
+    setBatchTabGrouping(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.BATCH_TAB_GROUPING]: event.target.checked });
   };
 
   const handleClose = () => {
@@ -191,6 +207,45 @@ const SettingsModal = ({ onClose }) => {
             <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
         </div>
+
+        {newIncidentHelperToggle && (
+          <>
+            <div className="flex gap-4 w-full items-center">
+              <input
+                type="checkbox"
+                id="autoClosePdPages"
+                checked={autoClosePdPages}
+                onChange={(e) => handleAutoClosePdPagesChange(e)}
+                className="form-checkbox"
+              />
+              <label
+                htmlFor="autoClosePdPages"
+                className="select-none flex items-center"
+                title="Automatically close PagerDuty pages after fetching incident titles"
+              >
+                Automatically close PD pages
+                <CircleHelp size={12} className="ml-1 cursor-help" />
+              </label>
+            </div>
+            <div className="flex gap-4 w-full items-center">
+              <input
+                type="checkbox"
+                id="batchTabGrouping"
+                checked={batchTabGrouping}
+                onChange={(e) => handleBatchTabGroupingChange(e)}
+                className="form-checkbox"
+              />
+              <label
+                htmlFor="batchTabGrouping"
+                className="select-none flex items-center"
+                title="Put batch-added Salesforce and PagerDuty tabs in a new tab group"
+              >
+                Enable tab grouping
+                <CircleHelp size={12} className="ml-1 cursor-help" />
+              </label>
+            </div>
+          </>
+        )}
 
         <hr className="w-full" />
         <h2 className="text-sm font-light tracking-wide self-start">Text Expansion</h2>

@@ -29,7 +29,7 @@ const BatchAddIncidentsModal = ({ onClose }) => {
   const handleSubmit = () => {
     if (detectedUrls.length === 0) return;
     chrome.runtime.sendMessage({
-      action: "openBatchNewCaseTabs",
+      action: "fetchBatchPagerDutyTitles",
       pdUrls: detectedUrls,
       newCaseUrl: NEW_CASE_BASE_URL,
     });

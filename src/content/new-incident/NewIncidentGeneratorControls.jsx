@@ -108,6 +108,51 @@ export default function NewIncidentGeneratorControls({
   React.useEffect(() => {
     if (initialUrlConsumed.current) return;
 
+    const runForGroupInfo = (groupInfo) => {
+      if (!groupInfo) return;
+      initialUrlConsumed.current = true;
+      setStatus("loading");
+      
+      // Fill the PD URL input if there is single PD URL
+      if (groupInfo.pdUrls.length === 1) {
+        setValue(groupInfo.pdUrls.join("\n"));
+      }
+      
+      const scope = getScope();
+      const subjectToFill = groupInfo.subject;
+      const formDefaults = groupInfo.formDefaults ?? BASE_FORM_DEFAULTS;
+      const descriptionToFill = groupInfo.pdUrls.join("\n");
+      
+      // Show detected alert only
+      setDetectedAlert({
+        alertTypeName: groupInfo.alertTypeName ?? null,
+        rawTitle: null,
+        carrierModule: null,
+      });
+      
+      const fillPromise = (async () => {
+        fillSubjectField(scope, subjectToFill);
+        fillDescriptionField(scope, descriptionToFill);
+        if (INCIDENT_LOOKUP_DEFAULTS.length > 0)
+          await applyIncidentLookupDefaults(scope, INCIDENT_LOOKUP_DEFAULTS);
+        if (formDefaults.length > 0)
+          await applyIncidentFormDefaults(scope, formDefaults);
+      })();
+      
+      Promise.race([
+        fillPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject("Form filling timed out. The page may be slow; try again."), FILL_FORM_TIMEOUT_MS),
+        ),
+      ]).finally(() => setStatus("idle"));
+      
+      toast.promise(fillPromise, {
+        loading: "Filling form with grouped alerts…",
+        success: "Form filled",
+        error: (err) => (typeof err === "string" ? err : err?.message) ?? "Failed to fill form",
+      });
+    };
+
     const runForUrl = (urlToFetch) => {
       if (!urlToFetch || !PD_INCIDENT_URL_REGEX.test(urlToFetch.trim())) return;
       initialUrlConsumed.current = true;
@@ -130,6 +175,10 @@ export default function NewIncidentGeneratorControls({
       attempts += 1;
       chrome.runtime.sendMessage({ action: "getPdUrlForMyTab" }, (response) => {
         if (initialUrlConsumed.current) return;
+        if (response?.groupInfo) {
+          runForGroupInfo(response.groupInfo);
+          return;
+        }
         if (response?.url) {
           runForUrl(response.url);
           return;

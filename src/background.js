@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from "./constants/storage";
+import { getCaseInfoFromPdTitle } from "./content/new-incident/incidentAlertTypes/index.js";
 
 const uuidv4 = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -193,60 +194,103 @@ function initialSetup() {
       chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: false });
     }
   });
+
+  chrome.storage.local.get(STORAGE_KEYS.AUTO_CLOSE_PD_PAGES, (result) => {
+    if (result[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.AUTO_CLOSE_PD_PAGES]: false });
+    }
+  });
+
+  chrome.storage.local.get(STORAGE_KEYS.BATCH_TAB_GROUPING, (result) => {
+    if (result[STORAGE_KEYS.BATCH_TAB_GROUPING] === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.BATCH_TAB_GROUPING]: true });
+    }
+  });
 }
 
 // ----- PagerDuty incident title fetch (for New Case: Incident) -----
 const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
 const PD_H1_SELECTOR = 'h1[class^="IncidentTitle_incidentTitle__"]';
-const PD_TITLE_WAIT_MS = 15000;
+const PD_TITLE_WAIT_MS = 30000;
 
-/** Injected into PagerDuty tab: observes for h1 and sends title back. Args passed so serialization works. */
+/** Injected into PagerDuty tab: wait for h1 with non-empty title (handles hydration). */
 function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
   const send = (title) => {
     chrome.runtime.sendMessage({ type: "PD_INCIDENT_TITLE_RESULT", tabId, title });
   };
 
-  const el = document.querySelector(selector);
-  if (el) {
-    send(el.textContent.trim());
-    return;
+  function readTitle(el) {
+    const t = el && el.textContent ? el.textContent.trim() : "";
+    return t.length > 0 ? t : null;
   }
 
+  function trySend() {
+    const el = document.querySelector(selector);
+    const title = readTitle(el);
+    if (title) {
+      send(title);
+      return true;
+    }
+    return false;
+  }
+
+  if (trySend()) return;
+
   const obs = new MutationObserver(() => {
-    const found = document.querySelector(selector);
-    if (found) {
+    const el = document.querySelector(selector);
+    const title = readTitle(el);
+    if (title) {
       obs.disconnect();
       clearTimeout(timeoutId);
-      send(found.textContent.trim());
+      send(title);
     }
   });
 
-  obs.observe(document.body, { childList: true, subtree: true });
+  obs.observe(document.body, { childList: true, subtree: true, characterData: true, characterDataOldValue: true });
 
   const timeoutId = setTimeout(() => {
     obs.disconnect();
-    send(null);
+    const el = document.querySelector(selector);
+    send(readTitle(el));
   }, timeoutMs);
 }
 
 const pendingPagerDutyRequests = new Map();
+// For batch fetch: tabId → { url, resolve, reject }
+const batchPagerDutyRequests = new Map();
 
 function onPagerDutyTabUpdated(tabId, changeInfo) {
   if (changeInfo.status !== "complete") return;
   const pending = pendingPagerDutyRequests.get(tabId);
-  if (!pending) return;
-
-  chrome.scripting
-    .executeScript({
-      target: { tabId },
-      func: observePagerDutyIncidentTitle,
-      args: [tabId, PD_H1_SELECTOR, PD_TITLE_WAIT_MS],
-    })
-    .catch(() => {
-      pendingPagerDutyRequests.delete(tabId);
-      chrome.tabs.remove(tabId).catch(() => {});
-      pending.sendResponse({ ok: false, error: "Failed to run script on PagerDuty page" });
-    });
+  const batchPending = batchPagerDutyRequests.get(tabId);
+  
+  if (pending) {
+    chrome.scripting
+      .executeScript({
+        target: { tabId },
+        func: observePagerDutyIncidentTitle,
+        args: [tabId, PD_H1_SELECTOR, PD_TITLE_WAIT_MS],
+      })
+      .catch(() => {
+        pendingPagerDutyRequests.delete(tabId);
+        chrome.tabs.remove(tabId).catch(() => {});
+        pending.sendResponse({ ok: false, error: "Failed to run script on PagerDuty page" });
+      });
+  }
+  
+  if (batchPending) {
+    chrome.scripting
+      .executeScript({
+        target: { tabId },
+        func: observePagerDutyIncidentTitle,
+        args: [tabId, PD_H1_SELECTOR, PD_TITLE_WAIT_MS],
+      })
+      .catch(() => {
+        batchPagerDutyRequests.delete(tabId);
+        chrome.tabs.remove(tabId).catch(() => {});
+        batchPending.reject(new Error("Failed to run script on PagerDuty page"));
+      });
+  }
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
@@ -260,7 +304,137 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   tabIdToPdUrl.delete(tabId);
 });
 
+// Group alerts by subject (same subject = same group)
+function groupAlertsBySubject(results) {
+  const groups = new Map();
+  
+  for (const { url, title } of results) {
+    if (!title) continue;
+    const caseInfo = getCaseInfoFromPdTitle(title);
+    const subject = caseInfo?.subject ?? title;
+    const key = subject;
+    
+    if (!groups.has(key)) {
+      groups.set(key, {
+        subject,
+        formDefaults: caseInfo?.formDefaults ?? [],
+        alertTypeName: caseInfo?.alertTypeName ?? null,
+        pdUrls: [],
+      });
+    }
+    groups.get(key).pdUrls.push(url);
+  }
+  
+  return Array.from(groups.values());
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Fetch all titles first, group, then open SF+PD
+  if (message.action === "fetchBatchPagerDutyTitles") {
+    const pdUrls = Array.isArray(message.pdUrls) ? message.pdUrls : [];
+    if (pdUrls.length === 0) {
+      sendResponse({ ok: false, error: "No PD URLs provided" });
+      return true;
+    }
+    
+    sendResponse({ ok: true });
+    
+    // Open all PD pages and collect titles
+    const fetchPromises = pdUrls.map((url) => {
+      return new Promise((resolve, reject) => {
+        if (!PD_INCIDENT_URL_REGEX.test(url)) {
+          resolve({ url, title: null });
+          return;
+        }
+        
+        chrome.tabs.create({ url, active: false }, (tab) => {
+          if (chrome.runtime.lastError || !tab?.id) {
+            resolve({ url, title: null });
+            return;
+          }
+          batchPagerDutyRequests.set(tab.id, { url, resolve, reject });
+        });
+      });
+    });
+    
+    Promise.all(fetchPromises).then((results) => {
+      // Group by subject
+      const groups = groupAlertsBySubject(results);
+      
+      // Open grouped incidents: 1 SF page + N PD pages per group
+      const newCaseUrl = message.newCaseUrl || "https://stampsdotcom.lightning.force.com/lightning/o/Case/new?count=1";
+      const tabIds = [];
+      let groupIndex = 0;
+      let tabsCreated = 0;
+      const totalTabs = groups.reduce((sum, g) => sum + 1 + g.pdUrls.length, 0); // 1 SF + N PD per group
+      
+      const maybeGroupTabs = () => {
+        if (tabsCreated !== totalTabs || tabIds.length === 0) return;
+        chrome.storage.local.get(STORAGE_KEYS.BATCH_TAB_GROUPING, (result) => {
+          const enableGrouping = result[STORAGE_KEYS.BATCH_TAB_GROUPING] === true;
+          if (enableGrouping && chrome.tabs.group) {
+            chrome.tabs.group({ tabIds }, (groupId) => {
+              if (chrome.runtime.lastError) {
+                console.warn("[SF Tools] Failed to create tab group:", chrome.runtime.lastError.message);
+              }
+            });
+          }
+        });
+      };
+      
+      const openNextGroup = () => {
+        if (groupIndex >= groups.length) {
+          // All groups processed, check if all tabs are created
+          maybeGroupTabs();
+          return;
+        }
+        const group = groups[groupIndex];
+        groupIndex += 1;
+        
+        // Open Salesforce page first
+        chrome.tabs.create({ url: newCaseUrl }, (sfTab) => {
+          if (sfTab?.id) {
+            tabIds.push(sfTab.id);
+            tabsCreated += 1;
+            maybeGroupTabs();
+            // Store group info for content script
+            tabIdToPdUrl.set(sfTab.id, JSON.stringify({
+              subject: group.subject,
+              formDefaults: group.formDefaults,
+              alertTypeName: group.alertTypeName,
+              pdUrls: group.pdUrls,
+            }));
+          }
+          
+          // Open PD pages for this group
+          let pdIndex = 0;
+          const openNextPd = () => {
+            if (pdIndex >= group.pdUrls.length) {
+              // Move to next group after a delay
+              setTimeout(openNextGroup, 200);
+              return;
+            }
+            const pdUrl = group.pdUrls[pdIndex];
+            pdIndex += 1;
+            chrome.tabs.create({ url: pdUrl, active: false }, (pdTab) => {
+              if (pdTab?.id) {
+                tabIds.push(pdTab.id);
+                tabsCreated += 1;
+                maybeGroupTabs();
+              }
+              setTimeout(openNextPd, 60);
+            });
+          };
+          openNextPd();
+        });
+      };
+      
+      openNextGroup();
+    });
+    
+    return true;
+  }
+  
   if (message.action === "openBatchNewCaseTabs") {
     const pdUrls = Array.isArray(message.pdUrls) ? message.pdUrls : [];
     const newCaseUrl = message.newCaseUrl || "";
@@ -286,12 +460,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     createNext();
     return true;
   }
-  // get PagerDuty URL for batch opened tab
+  // get PagerDuty URL/group info for batch opened tab
   if (message.action === "getPdUrlForMyTab") {
     const tabId = sender.tab?.id;
-    const pdUrl = tabId != null ? tabIdToPdUrl.get(tabId) : null;
-    if (pdUrl != null) tabIdToPdUrl.delete(tabId);
-    sendResponse({ url: pdUrl ?? null });
+    const stored = tabId != null ? tabIdToPdUrl.get(tabId) : null;
+    if (stored != null) {
+      tabIdToPdUrl.delete(tabId);
+      // Try to parse as JSON (new grouped format), fallback to string (old single URL format)
+      try {
+        const parsed = JSON.parse(stored);
+        sendResponse({ groupInfo: parsed });
+      } catch {
+        sendResponse({ url: stored });
+      }
+    } else {
+      sendResponse({ url: null });
+    }
     return true;
   }
   if (message.action !== "fetchPagerDutyIncidentTitle") return;
@@ -325,12 +509,27 @@ chrome.runtime.onMessage.addListener((message) => {
 
   const { tabId, title } = message;
   const pending = pendingPagerDutyRequests.get(tabId);
-  pendingPagerDutyRequests.delete(tabId);
-
-  chrome.tabs.remove(tabId).catch(() => {});
-
+  const batchPending = batchPagerDutyRequests.get(tabId);
+  
+  // Handle manual fetch (with auto-close setting)
   if (pending) {
+    pendingPagerDutyRequests.delete(tabId);
     pending.sendResponse({ ok: true, title: title ?? null });
+    chrome.storage.local.get(STORAGE_KEYS.AUTO_CLOSE_PD_PAGES, (result) => {
+      const autoClose = result[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true;
+      if (autoClose) {
+        // Close after a short delay so the response is delivered first
+        setTimeout(() => chrome.tabs.remove(tabId).catch(() => {}), 100);
+      }
+    });
+    return;
+  }
+  
+  // Handle batch fetch (always close)
+  if (batchPending) {
+    batchPagerDutyRequests.delete(tabId);
+    chrome.tabs.remove(tabId).catch(() => {});
+    batchPending.resolve({ url: batchPending.url, title: title ?? null });
   }
 });
 
