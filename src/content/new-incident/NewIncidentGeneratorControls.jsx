@@ -20,6 +20,15 @@ const FILL_TIMEOUT_MSG = "Form filling timed out. The page may be slow; try agai
 const FETCH_TITLE_TIMEOUT_MS = 15000;
 const FILL_FORM_TIMEOUT_MS = 12000;
 
+function extractJsonFromTargets(targets) {
+  if (!Array.isArray(targets) || !targets[0]?.labels) return { jsonExtractedClientName: null, jsonExtractedModuleName: null };
+  const labels = targets[0].labels;
+  return {
+    jsonExtractedClientName: labels.ClientcontractName ?? null,
+    jsonExtractedModuleName: labels.ClientcontractXLIdentifier ?? null,
+  };
+}
+
 export default function NewIncidentGeneratorControls({
   containerElement,
   modalScope,
@@ -79,14 +88,16 @@ export default function NewIncidentGeneratorControls({
         const subjectToFill = caseInfo?.subject ?? response.title;
         const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
 
+        const jsonFromTargets = extractJsonFromTargets(response.targets);
         setDetectedAlert(
           caseInfo
             ? {
                 alertTypeName: caseInfo.alertTypeName,
                 rawTitle: response.title,
                 carrierModule: caseInfo.carrierModule ?? null,
+                ...jsonFromTargets,
               }
-            : { fallback: true, rawTitle: response.title, carrierModule: null },
+            : { fallback: true, rawTitle: response.title, carrierModule: null, ...jsonFromTargets },
         );
 
         await Promise.race([
@@ -137,10 +148,11 @@ export default function NewIncidentGeneratorControls({
       const caseInfo = getCaseInfoFromPdTitle(title);
       const subjectToFill = caseInfo?.subject ?? title;
       const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
+      const jsonFromTargets = extractJsonFromTargets(targets);
       setDetectedAlert(
         caseInfo
-          ? { alertTypeName: caseInfo.alertTypeName, rawTitle: title, carrierModule: caseInfo.carrierModule ?? null }
-          : { fallback: true, rawTitle: title, carrierModule: null },
+          ? { alertTypeName: caseInfo.alertTypeName, rawTitle: title, carrierModule: caseInfo.carrierModule ?? null, ...jsonFromTargets }
+          : { fallback: true, rawTitle: title, carrierModule: null, ...jsonFromTargets },
       );
       toast.loading("Filling form from PagerDuty…", { id: "pd-batch-fill" });
       const fillPromise = Promise.race([
@@ -331,6 +343,17 @@ export default function NewIncidentGeneratorControls({
           {detectedAlert.alertTypeName
             ? <>Detected alert: <span className="font-bold">{detectedAlert.alertTypeName}</span>.</>
             : <span className="text-red-500 font-bold">Could not generate Subject - edit manually</span>}
+          {(detectedAlert.jsonExtractedClientName != null || detectedAlert.jsonExtractedModuleName != null) && (
+            <div className="slds-text-body_small text-xs" style={{ marginTop: "4px" }}>
+              {detectedAlert.jsonExtractedClientName != null && (
+                <>Client: <span className="font-bold">{detectedAlert.jsonExtractedClientName}</span></>
+              )}
+              {detectedAlert.jsonExtractedClientName != null && detectedAlert.jsonExtractedModuleName != null && " · "}
+              {detectedAlert.jsonExtractedModuleName != null && (
+                <>Module: <span className="font-bold">{detectedAlert.jsonExtractedModuleName}</span></>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

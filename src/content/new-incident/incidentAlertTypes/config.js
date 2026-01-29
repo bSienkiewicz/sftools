@@ -104,7 +104,7 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "Tracking" }],
   },
   {
-    id: "failed-transfer",
+    id: "mpm-failed-transfer",
     name: "MPM Failed Transfer",
     classify: (raw, ctx) =>
       ctx?.bodyForMatch != null &&
