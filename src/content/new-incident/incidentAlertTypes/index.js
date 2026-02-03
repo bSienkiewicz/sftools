@@ -43,7 +43,7 @@ export function getCaseInfoFromPdTitle(rawTitle) {
     if (!extracted || (extracted.body == null && extracted.subject == null)) continue;
 
     const displayPrefix =
-      type.id === "failed-transfer"
+      type.id === "mpm-failed-transfer"
         ? (PREFIX_OVERRIDES[extracted.prefix?.toLowerCase()] ?? sentenceCase(extracted.prefix))
         : (PREFIX_OVERRIDES[extracted.prefix?.toLowerCase()] ?? extracted.prefix);
 

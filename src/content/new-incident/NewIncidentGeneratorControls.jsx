@@ -20,6 +20,51 @@ const FILL_TIMEOUT_MSG = "Form filling timed out. The page may be slow; try agai
 const FETCH_TITLE_TIMEOUT_MS = 15000;
 const FILL_FORM_TIMEOUT_MS = 12000;
 
+function extractJsonFromTargets(targets) {
+  if (!Array.isArray(targets) || !targets[0]?.labels) return { jsonExtractedClientName: null, jsonExtractedModuleName: null };
+  const labels = targets[0].labels;
+  return {
+    jsonExtractedClientName: labels.ClientcontractName ?? null,
+    jsonExtractedModuleName: labels.ClientcontractXLIdentifier ?? null,
+  };
+}
+
+/** Build subject and form defaults from caseInfo, title, and JSON-extracted labels */
+function buildSubjectAndFormDefaults(caseInfo, title, jsonFromTargets) {
+  let subjectToFill = caseInfo?.subject ?? title;
+  let formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
+
+  if (caseInfo?.carrierModule) {
+    formDefaults = [...formDefaults];
+    const idx = formDefaults.findIndex((f) => f.fieldLabel === "Carrier module");
+    if (idx >= 0) formDefaults[idx] = { ...formDefaults[idx], value: "Single" };
+    else formDefaults.push({ fieldLabel: "Carrier module", value: "Single" });
+  }
+
+  if (caseInfo?.alertTypeName === "DM Failed Transfer") {
+    const client = jsonFromTargets?.jsonExtractedClientName ?? "<Customer>";
+    const module = jsonFromTargets?.jsonExtractedModuleName ?? "<Module>";
+    subjectToFill = subjectToFill.replace(/<Customer>/g, String(client)).replace(/<Module>/g, String(module));
+  }
+
+  if (caseInfo?.alertTypeName === "MPM Failed Transfer") {
+    const mod = jsonFromTargets?.jsonExtractedModuleName;
+    if (mod === null || mod === "null") {
+      // Subject should read "…Failed transfer for GenericExport" when module is null
+      if (/Failed transfer$/i.test(subjectToFill)) {
+        subjectToFill = subjectToFill + " for GenericExport";
+      }
+      // set carrier module to Unknown
+      formDefaults = [...formDefaults];
+      const idx = formDefaults.findIndex((f) => f.fieldLabel === "Carrier module");
+      if (idx >= 0) formDefaults[idx] = { ...formDefaults[idx], value: "Unknown" };
+      else formDefaults.push({ fieldLabel: "Carrier module", value: "Unknown" });
+    }
+  }
+
+  return { subjectToFill, formDefaults };
+}
+
 export default function NewIncidentGeneratorControls({
   containerElement,
   modalScope,
@@ -74,9 +119,10 @@ export default function NewIncidentGeneratorControls({
       const promise = (async () => {
         const response = await fetchWithTimeout;
         if (runId !== generateRunId.current) return;
+        console.log("[SF Tools] Failed transfer targets:", response.targets != null ? response.targets : "(not available)");
         const caseInfo = getCaseInfoFromPdTitle(response.title);
-        const subjectToFill = caseInfo?.subject ?? response.title;
-        const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
+        const jsonFromTargets = extractJsonFromTargets(response.targets); 
+        const { subjectToFill, formDefaults } = buildSubjectAndFormDefaults(caseInfo, response.title, jsonFromTargets);
 
         setDetectedAlert(
           caseInfo
@@ -84,8 +130,9 @@ export default function NewIncidentGeneratorControls({
                 alertTypeName: caseInfo.alertTypeName,
                 rawTitle: response.title,
                 carrierModule: caseInfo.carrierModule ?? null,
+                ...jsonFromTargets,
               }
-            : { fallback: true, rawTitle: response.title, carrierModule: null },
+            : { fallback: true, rawTitle: response.title, carrierModule: null, ...jsonFromTargets },
         );
 
         await Promise.race([
@@ -123,7 +170,7 @@ export default function NewIncidentGeneratorControls({
   );
 
   const applyBatchFill = React.useCallback(
-    (title, url) => {
+    (title, url, targets) => {
       setValue((prev) => prev || url || "");
       toast.dismiss("pd-batch-fill");
       if (title == null) {
@@ -131,14 +178,16 @@ export default function NewIncidentGeneratorControls({
         toast.error(PD_TITLE_BATCH_FAIL_MSG);
         return;
       }
+      console.log("[SF Tools] Failed transfer targets:", targets != null ? targets : "(not available)");
       const scope = getScope();
       const caseInfo = getCaseInfoFromPdTitle(title);
-      const subjectToFill = caseInfo?.subject ?? title;
-      const formDefaults = caseInfo?.formDefaults ?? BASE_FORM_DEFAULTS;
+      const jsonFromTargets = extractJsonFromTargets(targets);
+      const { subjectToFill, formDefaults } = buildSubjectAndFormDefaults(caseInfo, title, jsonFromTargets);
+
       setDetectedAlert(
         caseInfo
-          ? { alertTypeName: caseInfo.alertTypeName, rawTitle: title, carrierModule: caseInfo.carrierModule ?? null }
-          : { fallback: true, rawTitle: title, carrierModule: null },
+          ? { alertTypeName: caseInfo.alertTypeName, rawTitle: title, carrierModule: caseInfo.carrierModule ?? null, ...jsonFromTargets }
+          : { fallback: true, rawTitle: title, carrierModule: null, ...jsonFromTargets },
       );
       toast.loading("Filling form from PagerDuty…", { id: "pd-batch-fill" });
       const fillPromise = Promise.race([
@@ -183,7 +232,7 @@ export default function NewIncidentGeneratorControls({
       chrome.runtime.sendMessage({ action: "getPendingFillForMyTab" }, (data) => {
         if (data && (data.title != null || data.url)) {
           setBatchWaitingForFill(false);
-          applyBatchFill(data.title ?? null, data.url ?? "");
+          applyBatchFill(data.title ?? null, data.url ?? "", data.targets ?? null);
         }
       });
     }, BATCH_FILL_POLL_MS);
@@ -252,8 +301,8 @@ export default function NewIncidentGeneratorControls({
       toast.error(INVALID_URL_MSG);
       return;
     }
-    setStatus("loading");
     resetForm({ keepUrl: true });
+    setStatus("loading");
     runGenerateForUrl(url);
   };
 
@@ -304,14 +353,14 @@ export default function NewIncidentGeneratorControls({
           value={value}
           onChange={(e) => setValue(e.target.value)}
           style={{ minWidth: "360px" }}
-          disabled={status === "loading"}
+          disabled={status === "loading" || batchWaitingForFill}
         />
         <button
           type="submit"
           className="slds-button slds-button_brand"
-          disabled={status === "loading"}
+          disabled={status === "loading" || batchWaitingForFill}
         >
-          {status === "loading" ? "Loading…" : "Generate"}
+          {status === "loading" || batchWaitingForFill ? "Loading…" : "Generate"}
         </button>
       </form>
       {detectedAlert?.rawTitle != null && (
@@ -329,6 +378,17 @@ export default function NewIncidentGeneratorControls({
           {detectedAlert.alertTypeName
             ? <>Detected alert: <span className="font-bold">{detectedAlert.alertTypeName}</span>.</>
             : <span className="text-red-500 font-bold">Could not generate Subject - edit manually</span>}
+          {(detectedAlert.jsonExtractedClientName != null || detectedAlert.jsonExtractedModuleName != null) && (
+            <div className="slds-text-body_small text-xs" style={{ marginTop: "4px" }}>
+              {detectedAlert.jsonExtractedClientName != null && (
+                <>Client: <span className="font-bold">{detectedAlert.jsonExtractedClientName}</span></>
+              )}
+              {detectedAlert.jsonExtractedClientName != null && detectedAlert.jsonExtractedModuleName != null && " · "}
+              {detectedAlert.jsonExtractedModuleName != null && (
+                <>Module: <span className="font-bold">{detectedAlert.jsonExtractedModuleName}</span></>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

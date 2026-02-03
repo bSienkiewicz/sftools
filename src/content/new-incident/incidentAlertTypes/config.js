@@ -56,22 +56,6 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "System Setup" }],
   },
   {
-    id: "dm-failed-transfer",
-    name: "DM Failed Transfer",
-    classify: (raw) => /DM-SCHEDULER/.test(raw) && /Failed Transfer/i.test(raw),
-    extract: (raw) => {
-      const m = raw.match(/DM-SCHEDULER-DM(\d)/i);
-      const prefix = m ? "DM" + m[1] : "DM";
-      return {
-        body: "Failed Transfer",
-        prefix,
-        subject: `${prefix}|<Customer>|PD|Failed Transfer for <Module>`,
-        carrierModule: null,
-      };
-    },
-    formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }],
-  },
-  {
     id: "mpm-no-events",
     name: "MPM NoEventsFound",
     classify: (raw) =>
@@ -104,7 +88,23 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "Tracking" }],
   },
   {
-    id: "failed-transfer",
+    id: "dm-failed-transfer",
+    name: "DM Failed Transfer",
+    classify: (raw) => /DM-SCHEDULER/.test(raw) && /Failed Transfer/i.test(raw),
+    extract: (raw) => {
+      const m = raw.match(/DM-SCHEDULER-DM(\d)/i);
+      const prefix = m ? "DM" + m[1] : "DM";
+      return {
+        body: "Failed Transfer",
+        prefix,
+        subject: `${prefix}|<Customer>|PD|Failed Transfer for <Module>`,
+        carrierModule: null,
+      };
+    },
+    formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }, { fieldLabel: "Carrier module", value: "Single" }],
+  },
+  {
+    id: "mpm-failed-transfer",
     name: "MPM Failed Transfer",
     classify: (raw, ctx) =>
       ctx?.bodyForMatch != null &&
@@ -121,7 +121,7 @@ export const ALERT_TYPES = [
       };
     },
     subjectFormat: "{prefix}|PD|{body}",
-    formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }],
+    formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }, { fieldLabel: "Carrier module", value: "Single" }],
   },
   {
     id: "dm-missing-route-codes",

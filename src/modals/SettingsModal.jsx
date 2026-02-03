@@ -190,6 +190,9 @@ const SettingsModal = ({ onClose }) => {
           </label>
         </div>
 
+        <hr className="w-full" />
+        <h2 className="text-sm font-light tracking-wide self-start flex items-center gap-2">New Incident Builder <span style={{ fontSize: "8px"}} className="text-xs text-white bg-amber-700 px-2 rounded-full">Experimental</span></h2>
+
         <div className="flex gap-4 w-full items-center">
           <input
             type="checkbox"
@@ -203,7 +206,7 @@ const SettingsModal = ({ onClose }) => {
             className="select-none flex items-center"
             title="Enable New Incident helper on New Case: Incident pages"
           >
-            Enable New Incident helper
+            Enable New Incident Builder
             <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
         </div>

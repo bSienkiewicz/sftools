@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from "./constants/storage";
+import { getCaseInfoFromPdTitle } from "./content/new-incident/incidentAlertTypes/index.js";
 
 const uuidv4 = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -213,10 +214,53 @@ const PD_H1_SELECTOR = 'h1[class^="IncidentTitle_incidentTitle__"]';
 const PD_TITLE_WAIT_MS = 30000;
 const BATCH_PD_INJECT_DELAY_MS = 8000; // Fallback: inject if "complete" never fires (e.g. tab in background)
 
-/** Injected into PagerDuty tab: wait for h1 with non-empty title (handles hydration). */
+/** Injected into PagerDuty tab: wait for h1 title, extract "targets" row (JSON array) from table when present, send both. */
 function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
-  const send = (title) => {
-    chrome.runtime.sendMessage({ type: "PD_INCIDENT_TITLE_RESULT", tabId, title });
+  function isTargetsShape(arr) {
+    return Array.isArray(arr) && arr.length > 0 && arr.every((item) => item && typeof item === 'object' && 'id' in item && item.labels && typeof item.labels === 'object');
+  }
+
+  function getCodeElements(root, out) {
+    if (!root) return;
+    const codes = root.querySelectorAll ? root.querySelectorAll('code') : [];
+    for (const el of codes) out.push(el);
+    const all = root.querySelectorAll ? root.querySelectorAll('*') : [];
+    for (const el of all) {
+      if (el.shadowRoot) getCodeElements(el.shadowRoot, out);
+    }
+  }
+
+  function extractTargets() {
+    const codes = [];
+    getCodeElements(document.documentElement, codes);
+    for (const code of codes) {
+      try {
+        const text = (code.textContent || '').replace(/\s+/g, ' ').trim();
+        if (!text || text[0] !== '[') continue;
+        const parsed = JSON.parse(text);
+        if (isTargetsShape(parsed)) return parsed;
+      } catch (_) {}
+    }
+    const rows = document.querySelectorAll('table[role="presentation"] tr');
+    for (const row of rows) {
+      const strong = row.querySelector('td strong');
+      if (!strong) continue;
+      const label = strong.textContent.trim().replace(/:$/, '').trim();
+      if (label !== 'targets') continue;
+      const code = row.querySelector('code');
+      if (!code) return null;
+      try {
+        const text = code.textContent.replace(/\s+/g, ' ').trim();
+        return text ? JSON.parse(text) : null;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  const send = (title, targets) => {
+    chrome.runtime.sendMessage({ type: "PD_INCIDENT_TITLE_RESULT", tabId, title, targets: targets ?? null });
   };
 
   function readTitle(el) {
@@ -224,11 +268,36 @@ function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
     return t.length > 0 ? t : null;
   }
 
+  const TARGETS_POLL_MS = 500;
+  const TARGETS_POLL_MAX = 30; // 15s total
+  function trySendWithTargets(title) {
+    if (!title) return;
+    let attempts = 0;
+    const id = setInterval(() => {
+      const targets = extractTargets();
+      attempts += 1;
+      if (targets != null || attempts >= TARGETS_POLL_MAX) {
+        clearInterval(id);
+        send(title, targets ?? null);
+      }
+    }, TARGETS_POLL_MS);
+  }
+
+  function onTitleReady(title) {
+    chrome.runtime.sendMessage({ action: "CHECK_NEED_TARGETS", title }, (needTargets) => {
+      if (needTargets === true) {
+        trySendWithTargets(title);
+      } else {
+        send(title, null);
+      }
+    });
+  }
+
   function trySend() {
     const el = document.querySelector(selector);
     const title = readTitle(el);
     if (title) {
-      send(title);
+      onTitleReady(title);
       return true;
     }
     return false;
@@ -242,7 +311,7 @@ function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
     if (title) {
       obs.disconnect();
       clearTimeout(timeoutId);
-      send(title);
+      onTitleReady(title);
     }
   });
 
@@ -251,7 +320,8 @@ function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
   const timeoutId = setTimeout(() => {
     obs.disconnect();
     const el = document.querySelector(selector);
-    send(readTitle(el));
+    const title = readTitle(el);
+    if (title) onTitleReady(title);
   }, timeoutMs);
 }
 
@@ -393,6 +463,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse(data || null);
     return true;
   }
+  if (message.action === "CHECK_NEED_TARGETS") {
+    const title = message.title;
+    const info = typeof title === "string" && title.trim() ? getCaseInfoFromPdTitle(title.trim()) : null;
+    const needTargets =
+      info &&
+      (info.alertTypeName === "DM Failed Transfer" || info.alertTypeName === "MPM Failed Transfer");
+    sendResponse(!!needTargets);
+    return true;
+  }
   if (message.action !== "fetchPagerDutyIncidentTitle") return;
 
   const url = (message.url || "").trim();
@@ -422,13 +501,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type !== "PD_INCIDENT_TITLE_RESULT") return;
 
-  const { tabId, title } = message;
+  const { tabId, title, targets } = message;
   const pending = pendingPagerDutyRequests.get(tabId);
   const batch = batchPdTabToSfTab.get(tabId);
 
   if (pending) {
     pendingPagerDutyRequests.delete(tabId);
-    pending.sendResponse({ ok: true, title: title ?? null });
+    pending.sendResponse({ ok: true, title: title ?? null, targets: targets ?? null });
     chrome.storage.local.get(STORAGE_KEYS.AUTO_CLOSE_PD_PAGES, (result) => {
       const autoClose = result[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true;
       if (autoClose) {
@@ -439,7 +518,7 @@ chrome.runtime.onMessage.addListener((message) => {
   }
   if (batch) {
     batchPdTabToSfTab.delete(tabId);
-    pendingFillBySfTab.set(batch.sfTabId, { title: title ?? null, url: batch.url });
+    pendingFillBySfTab.set(batch.sfTabId, { title: title ?? null, url: batch.url, targets: targets ?? null });
     chrome.storage.local.get(STORAGE_KEYS.AUTO_CLOSE_PD_PAGES, (result) => {
       const autoClose = result[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true;
       if (autoClose) {
