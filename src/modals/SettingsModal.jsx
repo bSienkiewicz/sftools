@@ -7,6 +7,7 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { STORAGE_KEYS } from "../constants/storage";
 
 const SettingsModal = ({ onClose }) => {
   const [isVisible, setIsVisible] = useState(false); // State to control visibility
@@ -16,30 +17,32 @@ const SettingsModal = ({ onClose }) => {
   const [enableTextExpansion, setEnableTextExpansion] = useState(true);
   const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
   const [quickSendToggle, setQuickSendToggle] = useState(false);
-  // Get the current message when the component mounts
+  const [newIncidentHelperToggle, setNewIncidentHelperToggle] = useState(false);
+  const [autoClosePdPages, setAutoClosePdPages] = useState(false);
+  const [batchTabGrouping, setBatchTabGrouping] = useState(false);
+
   useEffect(() => {
-    chrome.storage.local.get("showSevenDays").then((data) => {
-      setShowSevenDays(data.showSevenDays);
-    });
-
-    chrome.storage.local.get("sevenDaysAmount").then((data) => {
-      setSevenDaysAmount(data.sevenDaysAmount);
-    });
-
-    chrome.storage.local.get("showTemplates").then((data) => {
-      setShowTemplates(data.showTemplates);
-    });
-
-    chrome.storage.local.get("enableTextExpansion").then((data) => {
-      setEnableTextExpansion(data.enableTextExpansion !== false); // Default to true if not set
-    });
-
-    chrome.storage.local.get("showTextExpansionAlias").then((data) => {
-      setShowTextExpansionAlias(data.showTextExpansionAlias !== false); // Default to true if not set
-    });
-
-    chrome.storage.local.get("quickSendToggle").then((data) => {
-      setQuickSendToggle(data.quickSendToggle);
+    const keys = [
+      STORAGE_KEYS.SHOW_SEVEN_DAYS,
+      STORAGE_KEYS.SEVEN_DAYS_AMOUNT,
+      STORAGE_KEYS.SHOW_TEMPLATES,
+      STORAGE_KEYS.ENABLE_TEXT_EXPANSION,
+      STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS,
+      STORAGE_KEYS.QUICK_SEND_TOGGLE,
+      STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE,
+      STORAGE_KEYS.AUTO_CLOSE_PD_PAGES,
+      STORAGE_KEYS.BATCH_TAB_GROUPING,
+    ];
+    chrome.storage.local.get(keys).then((data) => {
+      setShowSevenDays(data[STORAGE_KEYS.SHOW_SEVEN_DAYS]);
+      setSevenDaysAmount(data[STORAGE_KEYS.SEVEN_DAYS_AMOUNT] ?? 7);
+      setShowTemplates(data[STORAGE_KEYS.SHOW_TEMPLATES]);
+      setEnableTextExpansion(data[STORAGE_KEYS.ENABLE_TEXT_EXPANSION] !== false);
+      setShowTextExpansionAlias(data[STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS] !== false);
+      setQuickSendToggle(data[STORAGE_KEYS.QUICK_SEND_TOGGLE]);
+      setNewIncidentHelperToggle(data[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === true);
+      setAutoClosePdPages(data[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true);
+      setBatchTabGrouping(data[STORAGE_KEYS.BATCH_TAB_GROUPING] === true);
     });
     
     setTimeout(() => {
@@ -49,32 +52,47 @@ const SettingsModal = ({ onClose }) => {
 
   const handleShowTemplatesChange = (event) => {
     setShowTemplates(event.target.checked);
-    chrome.storage.local.set({ showTemplates: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_TEMPLATES]: event.target.checked });
   };
 
   const handleShowSevenDaysChange = (event) => {
     setShowSevenDays(event.target.checked);
-    chrome.storage.local.set({ showSevenDays: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_SEVEN_DAYS]: event.target.checked });
   };
 
   const handleSevenDaysAmountChange = (event) => {
     setSevenDaysAmount(event.target.value);
-    chrome.storage.local.set({ sevenDaysAmount: event.target.value });
+    chrome.storage.local.set({ [STORAGE_KEYS.SEVEN_DAYS_AMOUNT]: event.target.value });
   };
 
   const handleEnableTextExpansionChange = (event) => {
     setEnableTextExpansion(event.target.checked);
-    chrome.storage.local.set({ enableTextExpansion: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.ENABLE_TEXT_EXPANSION]: event.target.checked });
   };
 
   const handleQuickSendToggleChange = (event) => {
     setQuickSendToggle(event.target.checked);
-    chrome.storage.local.set({ quickSendToggle: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.QUICK_SEND_TOGGLE]: event.target.checked });
   };
 
   const handleShowTextExpansionAliasChange = (event) => {
     setShowTextExpansionAlias(event.target.checked);
-    chrome.storage.local.set({ showTextExpansionAlias: event.target.checked });
+    chrome.storage.local.set({ [STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS]: event.target.checked });
+  };
+
+  const handleNewIncidentHelperToggleChange = (event) => {
+    setNewIncidentHelperToggle(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: event.target.checked });
+  };
+
+  const handleAutoClosePdPagesChange = (event) => {
+    setAutoClosePdPages(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.AUTO_CLOSE_PD_PAGES]: event.target.checked });
+  };
+
+  const handleBatchTabGroupingChange = (event) => {
+    setBatchTabGrouping(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.BATCH_TAB_GROUPING]: event.target.checked });
   };
 
   const handleClose = () => {
@@ -171,6 +189,66 @@ const SettingsModal = ({ onClose }) => {
             <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
         </div>
+
+        <hr className="w-full" />
+        <h2 className="text-sm font-light tracking-wide self-start flex items-center gap-2">New Incident Builder <span style={{ fontSize: "8px"}} className="text-xs text-white bg-amber-700 px-2 rounded-full">Experimental</span></h2>
+
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="newIncidentHelperToggle"
+            checked={newIncidentHelperToggle}
+            onChange={(e) => handleNewIncidentHelperToggleChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="newIncidentHelperToggle"
+            className="select-none flex items-center"
+            title="Enable New Incident helper on New Case: Incident pages"
+          >
+            Enable New Incident Builder
+            <CircleHelp size={12} className="ml-1 cursor-help" />
+          </label>
+        </div>
+
+        {newIncidentHelperToggle && (
+          <>
+            <div className="flex gap-4 w-full items-center">
+              <input
+                type="checkbox"
+                id="autoClosePdPages"
+                checked={autoClosePdPages}
+                onChange={(e) => handleAutoClosePdPagesChange(e)}
+                className="form-checkbox"
+              />
+              <label
+                htmlFor="autoClosePdPages"
+                className="select-none flex items-center"
+                title="Automatically close PagerDuty pages after fetching incident titles"
+              >
+                Automatically close PD pages
+                <CircleHelp size={12} className="ml-1 cursor-help" />
+              </label>
+            </div>
+            <div className="flex gap-4 w-full items-center">
+              <input
+                type="checkbox"
+                id="batchTabGrouping"
+                checked={batchTabGrouping}
+                onChange={(e) => handleBatchTabGroupingChange(e)}
+                className="form-checkbox"
+              />
+              <label
+                htmlFor="batchTabGrouping"
+                className="select-none flex items-center"
+                title="Put batch-added Salesforce and PagerDuty tabs in a new tab group"
+              >
+                Enable tab grouping
+                <CircleHelp size={12} className="ml-1 cursor-help" />
+              </label>
+            </div>
+          </>
+        )}
 
         <hr className="w-full" />
         <h2 className="text-sm font-light tracking-wide self-start">Text Expansion</h2>
