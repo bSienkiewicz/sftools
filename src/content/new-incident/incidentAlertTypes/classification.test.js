@@ -1,13 +1,11 @@
 /**
- * Classification tests: run with `node src/content/new-incident/incidentAlertTypes/classification.test.js`
- * (or from this directory: `node classification.test.js`)
+ * Classification tests: run with `pnpm test:classify`
  *
  * Add example raw PD titles and expected results; they are run through getCaseInfoFromPdTitle
  * without loading the extension.
  */
 
 import { getCaseInfoFromPdTitle } from "./index.js";
-
 const tests = [
   {
     name: "DM Error Percentage (DX Error Percentage)",
@@ -90,6 +88,47 @@ const tests = [
       subjectContains: "JLP|PD|Amazon Shipping - Increased Error Rate",
     },
   },
+  {
+    name: "DM Database Errors",
+    rawTitle:
+      "PRD DM-UX-DM3 EU-WEST-1 query result is > 0.0 on '***CRITICAL*** - DM02 - DM Database errors'",
+    expected: {
+      alertTypeName: "DM Database Errors",
+      type: "System Performance",
+      subject: "DM|PD|DM02 - Database errors",
+    },
+  },
+  {
+    name: "DM AVG Response Time (prefix from mpm4dm hostname in body)",
+    rawTitle:
+      "PRD DM-CARRIERS-DM4 ECS query result is > 2.0 for 5 minutes on 'PRD - DM4 ***HIGH*** AVG response time for mpm4dm03.mpm.metapack.internal'",
+    expected: {
+      alertTypeName: "DM AVG Response Time",
+      type: "System Performance",
+      subject: "MPM4DM03|PD|AVG response time for mpm4dm03.mpm.metapack.internal",
+    },
+  },
+  {
+    name: "MPM Generic (tag chain in body)",
+    rawTitle:
+      "MP_WESTWING_Germany_Rhenus_PL query result is >= 1.0 on '***CRITICAL*** - SHD - MPM - SHD - ALL - Duplicated shipment/parcel identifiers'",
+    expected: {
+      alertTypeName: "MPM Generic",
+      type: "System Performance",
+      subject: "WESTWING|PD|Duplicated shipment/parcel identifiers",
+    },
+  },
+  // Ordering-sensitive: dm-failed-transfer must match before mpm-failed-transfer
+  {
+    name: "DM Failed Transfer (must match before MPM Failed Transfer)",
+    rawTitle:
+      "PRD DM-SCHEDULER-DM2 ECS query result is > 0.0 on '***CRITICAL*** - Failed Transfer for Module XYZ'",
+    expected: {
+      alertTypeName: "DM Failed Transfer",
+      type: "Manifesting",
+      subjectContains: "DM2|<Customer>|PD|Failed Transfer",
+    },
+  },
 ];
 
 function getType(formDefaults) {
@@ -139,7 +178,7 @@ for (const t of tests) {
 
   if (errors.length > 0) {
     failed += 1;
-    console.error(`\n❌ ${t.name}`);
+    console.error(`❌ ${t.name}`);
     errors.forEach((e) => console.error(`   ${e}`));
     console.error(`   rawTitle: ${t.rawTitle.slice(0, 80)}...`);
   } else {

@@ -16,6 +16,8 @@ export const STORAGE_KEYS = {
   NEW_INCIDENT_HELPER_TOGGLE: "newIncidentHelperToggle",
   AUTO_CLOSE_PD_PAGES: "autoClosePdPages",
   BATCH_TAB_GROUPING: "batchTabGrouping",
+  // Anti-idle
+  ANTI_IDLE_TOGGLE: "antiIdleToggle",
   // Other
   INITIALIZED: "initialized",
   UPDATE_AVAILABLE: "update_available",

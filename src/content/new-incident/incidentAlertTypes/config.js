@@ -10,6 +10,7 @@ import {
   stripLeadingPolicyIds,
   stripMidPolicyFragments,
   stripDmBodyPrefix,
+  stripTagChain,
 } from "./parse.js";
 
 export const BASE_FORM_DEFAULTS = [
@@ -39,6 +40,13 @@ export const PREFIX_OVERRIDES = {
 function hasKeyword(body, keywords) {
   const lower = (body || "").toLowerCase();
   return keywords.some((kw) => lower.includes(String(kw).toLowerCase()));
+}
+
+function defaultExtract(prefixOverride) {
+  return (_raw, ctx) => {
+    const body = normalizeBodyDefault(ctx.quoted);
+    return { body, prefix: prefixOverride ?? ctx.prefix, subject: null, carrierModule: null };
+  };
 }
 
 export const ALERT_TYPES = [
@@ -113,12 +121,7 @@ export const ALERT_TYPES = [
       const code = getFailedTransferCode(raw);
       const body = code ? `Failed transfer for ${code}` : "Failed transfer";
       const prefix = ctx.prefix ?? getPrefixFromRaw(raw);
-      return {
-        body,
-        prefix,
-        subject: null,
-        carrierModule: null,
-      };
+      return { body, prefix, subject: null, carrierModule: null };
     },
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "Manifesting" }, { fieldLabel: "Carrier module", value: "Single" }],
@@ -144,6 +147,39 @@ export const ALERT_TYPES = [
     formOverrides: [{ fieldLabel: "Type", value: "System Setup" }],
   },
   {
+    id: "dm-database-errors",
+    name: "DM Database Errors",
+    classify: (raw, ctx) =>
+      /DM-UX/i.test(raw) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["Database errors"]),
+    extract: (_raw, ctx) => {
+      let body = stripSeverity(ctx.quoted);
+      body = body?.replace(/\s-\sDM\s/i, " - ")?.trim() || null;
+      return { body, prefix: "DM", subject: null, carrierModule: null };
+    },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
+  },
+  {
+    id: "dm-avg-response-time",
+    name: "DM AVG Response Time",
+    classify: (raw, ctx) =>
+      /^PRD\s+DM-/i.test(raw) &&
+      ctx?.bodyForMatch != null &&
+      hasKeyword(ctx.bodyForMatch, ["AVG response time"]),
+    extract: (_raw, ctx) => {
+      let body = stripSeverity(ctx.quoted);
+      body = stripMidPolicyFragments(body);
+      body = stripLeadingPolicyIds(body);
+      const mpmHost = body?.match(/\b(mpm4dm\d+)\b/i);
+      const prefix = mpmHost ? mpmHost[1].toUpperCase() : "DM";
+      return { body: body?.trim() || null, prefix, subject: null, carrierModule: null };
+    },
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
+  },
+  {
     id: "dm-web-transaction",
     name: "DM Web Transaction",
     classify: (raw, ctx) =>
@@ -151,11 +187,8 @@ export const ALERT_TYPES = [
       /^DM/.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["High Web Transaction Time", "Web Transaction Time"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: "DM", subject: null, carrierModule: null };
-    },
-    subjectFormat: "DM|PD|{body}",
+    extract: defaultExtract("DM"),
+    subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
   {
@@ -166,10 +199,7 @@ export const ALERT_TYPES = [
       /^[A-Z]/.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["Error rate above 90%", "90% of requests"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
-    },
+    extract: defaultExtract(),
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
@@ -181,10 +211,7 @@ export const ALERT_TYPES = [
       /^Hm$/i.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["Print duration"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
-    },
+    extract: defaultExtract(),
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
@@ -212,10 +239,7 @@ export const ALERT_TYPES = [
       /^DM\d+$/.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["Error Percentage"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
-    },
+    extract: defaultExtract(),
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
@@ -223,11 +247,8 @@ export const ALERT_TYPES = [
     id: "dm-allocation-error-rate",
     name: "DM Allocation (Error Rate)",
     classify: (raw, ctx) => ctx?.prefix != null && /^DM ALL$/.test(ctx.prefix),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: "DM ALL", subject: null, carrierModule: null };
-    },
-    subjectFormat: "DM ALL|PD|{body}",
+    extract: defaultExtract("DM ALL"),
+    subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
   },
   {
@@ -238,10 +259,7 @@ export const ALERT_TYPES = [
       !/^DM/i.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["PrintParcel Duration", "Increased PrintParcel Duration"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
-      return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
-    },
+    extract: defaultExtract(),
     subjectFormat: "{prefix}|PD|{body}",
     formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   },
@@ -253,11 +271,22 @@ export const ALERT_TYPES = [
       !/^DM/i.test(ctx.prefix) &&
       ctx?.bodyForMatch != null &&
       hasKeyword(ctx.bodyForMatch, ["Increased Error Rate"]),
-    extract: (raw, ctx) => {
-      const body = normalizeBodyDefault(ctx.quoted);
+    extract: defaultExtract(),
+    subjectFormat: "{prefix}|PD|{body}",
+    formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
+  },
+  {
+    id: "mpm-generic",
+    name: "MPM Generic",
+    classify: (raw, ctx) =>
+      ctx?.prefix != null &&
+      !/^DM/i.test(ctx.prefix),
+    extract: (_raw, ctx) => {
+      let body = stripSeverity(ctx.quoted);
+      body = stripTagChain(body);
       return { body, prefix: ctx.prefix, subject: null, carrierModule: null };
     },
     subjectFormat: "{prefix}|PD|{body}",
-    formOverrides: [{ fieldLabel: "Type", value: "Allocation" }],
+    formOverrides: [{ fieldLabel: "Type", value: "System Performance" }],
   }
 ];

@@ -206,6 +206,12 @@ function initialSetup() {
       chrome.storage.local.set({ [STORAGE_KEYS.BATCH_TAB_GROUPING]: true });
     }
   });
+
+  chrome.storage.local.get(STORAGE_KEYS.ANTI_IDLE_TOGGLE, (result) => {
+    if (result[STORAGE_KEYS.ANTI_IDLE_TOGGLE] === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.ANTI_IDLE_TOGGLE]: true });
+    }
+  });
 }
 
 // ----- PagerDuty incident title fetch (for New Case: Incident) -----

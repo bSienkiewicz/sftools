@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SF Tools",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "action": {
     "default_popup": "index.html"
   },
@@ -31,7 +31,8 @@
       "js": [
         "src/content/new-incident/NewIncidentPageDetector.jsx",
         "src/TemplateContent.jsx",
-        "src/content/seven-days/SevenDays.jsx"
+        "src/content/seven-days/SevenDays.jsx",
+        "src/content/anti-idle/AntiIdle.js"
       ],
       "run_at": "document_idle"
     }
