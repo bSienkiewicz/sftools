@@ -20,6 +20,7 @@ const SettingsModal = ({ onClose }) => {
   const [newIncidentHelperToggle, setNewIncidentHelperToggle] = useState(false);
   const [autoClosePdPages, setAutoClosePdPages] = useState(false);
   const [batchTabGrouping, setBatchTabGrouping] = useState(false);
+  const [antiIdleToggle, setAntiIdleToggle] = useState(false);
 
   useEffect(() => {
     const keys = [
@@ -32,6 +33,7 @@ const SettingsModal = ({ onClose }) => {
       STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE,
       STORAGE_KEYS.AUTO_CLOSE_PD_PAGES,
       STORAGE_KEYS.BATCH_TAB_GROUPING,
+      STORAGE_KEYS.ANTI_IDLE_TOGGLE,
     ];
     chrome.storage.local.get(keys).then((data) => {
       setShowSevenDays(data[STORAGE_KEYS.SHOW_SEVEN_DAYS]);
@@ -43,6 +45,7 @@ const SettingsModal = ({ onClose }) => {
       setNewIncidentHelperToggle(data[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === true);
       setAutoClosePdPages(data[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true);
       setBatchTabGrouping(data[STORAGE_KEYS.BATCH_TAB_GROUPING] === true);
+      setAntiIdleToggle(data[STORAGE_KEYS.ANTI_IDLE_TOGGLE] === true);
     });
     
     setTimeout(() => {
@@ -95,6 +98,11 @@ const SettingsModal = ({ onClose }) => {
     chrome.storage.local.set({ [STORAGE_KEYS.BATCH_TAB_GROUPING]: event.target.checked });
   };
 
+  const handleAntiIdleToggleChange = (event) => {
+    setAntiIdleToggle(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.ANTI_IDLE_TOGGLE]: event.target.checked });
+  };
+
   const handleClose = () => {
     setIsVisible(false);
     setTimeout(() => {
@@ -104,7 +112,7 @@ const SettingsModal = ({ onClose }) => {
 
   return (
     <div
-      className={`w-full h-full bg-gray-50 text-gray-800 p-6 rounded-lg shadow-sm transition-all duration-300 absolute top-0 left-0 ${
+      className={`w-full h-full overflow-y-auto bg-gray-50 text-gray-800 p-6 rounded-lg shadow-sm transition-all duration-300 absolute top-0 left-0 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -186,6 +194,24 @@ const SettingsModal = ({ onClose }) => {
             title="Enable Ctrl+Enter+Enter to save the comment"
           >
             Enable quick send
+            <CircleHelp size={12} className="ml-1 cursor-help" />
+          </label>
+        </div>
+
+        <div className="flex gap-4 w-full items-center">
+          <input
+            type="checkbox"
+            id="antiIdleToggle"
+            checked={antiIdleToggle}
+            onChange={(e) => handleAntiIdleToggleChange(e)}
+            className="form-checkbox"
+          />
+          <label
+            htmlFor="antiIdleToggle"
+            className="select-none flex items-center"
+            title="Prevent Salesforce from closing tabs due to inactivity"
+          >
+            Prevent idle tab timeout
             <CircleHelp size={12} className="ml-1 cursor-help" />
           </label>
         </div>

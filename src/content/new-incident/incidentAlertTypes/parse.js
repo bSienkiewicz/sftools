@@ -12,7 +12,7 @@ export function getPrefixFromRaw(rawTitle) {
   if (dmCarriers) return "DM" + dmCarriers[1];
   const dmScheduler = beforeQuote.match(/DM-SCHEDULER-DM(\d)/i);
   if (dmScheduler) return "DM" + dmScheduler[1];
-  const mpSegment = beforeQuote.match(/_MP_([A-Za-z0-9]+)_/);
+  const mpSegment = beforeQuote.match(/(?:^|_)MP_([A-Za-z0-9]+)_/);
   if (mpSegment) return mpSegment[1].toUpperCase();
   // Prefix = everything before the first dot (e.g. hermes, mpm4dm01, hm, cycleon)
   const hostSegment = rawTitle.match(/^([a-zA-Z0-9]+)\./);
@@ -56,6 +56,12 @@ export function stripMidPolicyFragments(s) {
 export function stripErrorCodes(s) {
   if (!s) return s;
   return s.replace(/\s*E\d+\s*/g, " ").trim();
+}
+
+/** Strip tag chains like "SHD - MPM - SHD - ALL - " that precede the actual body. */
+export function stripTagChain(s) {
+  if (!s) return s;
+  return s.replace(/^(?:(?:SHD|MPM|ALL|DM)\d*\s*-\s*)+/i, "").trim() || null;
 }
 
 /** "DM Native Allocation ", "DM Allocation " → "Allocation ", trailing "DM ". */

@@ -225,9 +225,10 @@ function App() {
 
   return (
     <div className="w-96 h-[600px] flex flex-col relative">
-      <h1 className="text-3xl font-bold text-center p-6 shadow bg-blue-500 text-white">SF Tools</h1>
-
-      <div className="absolute bottom-1 right-1 text-gray-300 text-xs">v{chrome.runtime.getManifest().version}</div>
+      <div className="text-center p-6 shadow bg-blue-500 text-white">
+        <h1 className="text-3xl font-bold">SF Tools</h1>
+        <span className="text-xs opacity-60">v{chrome.runtime.getManifest().version}</span>
+      </div>
 
       <div className="absolute top-1 right-1 flex flex-col">
         {updateAvailable && (
