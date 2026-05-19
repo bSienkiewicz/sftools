@@ -1,9 +1,10 @@
 import { STORAGE_KEYS } from "../../constants/storage";
 
-const INTERVAL_MS = 4 * 60 * 1000;
+const ACTIVITY_INTERVAL_MS = 4 * 60 * 1000;
+const MODAL_POLL_MS = 2000;
 
-let intervalId = null;
-let visibilityOverrideActive = false;
+let activityIntervalId = null;
+let modalObserver = null;
 
 function simulateActivity() {
   document.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: Math.random() * 100, clientY: Math.random() * 100 }));
@@ -11,40 +12,46 @@ function simulateActivity() {
   document.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, key: "Shift", code: "ShiftLeft" }));
 }
 
-function overrideVisibility() {
-  if (visibilityOverrideActive) return;
-  visibilityOverrideActive = true;
-
-  Object.defineProperty(document, "hidden", { get: () => false, configurable: true });
-  Object.defineProperty(document, "visibilityState", { get: () => "visible", configurable: true });
-  document.hasFocus = () => true;
-
-  document.addEventListener("visibilitychange", (e) => {
-    e.stopImmediatePropagation();
-  }, true);
+function dismissIdleModal() {
+  const buttons = document.querySelectorAll("div.modal-footer button.uiButton");
+  for (const btn of buttons) {
+    const label = btn.querySelector(".label");
+    if (label && label.textContent.trim() === "Continue Working") {
+      btn.click();
+      console.log("Dismissed idle modal");
+      return true;
+    }
+  }
+  return false;
 }
 
-function restoreVisibility() {
-  if (!visibilityOverrideActive) return;
-  visibilityOverrideActive = false;
+function startModalWatcher() {
+  if (modalObserver) return;
+  modalObserver = new MutationObserver(() => {
+    dismissIdleModal();
+  });
+  modalObserver.observe(document.body, { childList: true, subtree: true });
+}
 
-  delete document.hidden;
-  delete document.visibilityState;
-  delete document.hasFocus;
+function stopModalWatcher() {
+  if (modalObserver) {
+    modalObserver.disconnect();
+    modalObserver = null;
+  }
 }
 
 function start() {
-  if (intervalId) return;
-  overrideVisibility();
-  intervalId = setInterval(simulateActivity, INTERVAL_MS);
+  if (activityIntervalId) return;
+  activityIntervalId = setInterval(simulateActivity, ACTIVITY_INTERVAL_MS);
+  startModalWatcher();
 }
 
 function stop() {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
+  if (activityIntervalId) {
+    clearInterval(activityIntervalId);
+    activityIntervalId = null;
   }
-  restoreVisibility();
+  stopModalWatcher();
 }
 
 function init() {
