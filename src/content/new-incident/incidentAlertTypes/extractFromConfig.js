@@ -75,10 +75,24 @@ function normalizeExtractConfig(extract) {
       prefixFixed: extract.prefixOverride,
     };
   }
+  // Keep template / literal body strings as-is for trepCarrier, transferCode, etc.
+  if (
+    typeof extract?.body === "string" &&
+    (extract.body.includes("{") ||
+      extract.trepCarrierFromRaw ||
+      extract.transferCodeFromRaw ||
+      !BODY_STEPS[extract.body])
+  ) {
+    return extract;
+  }
   if (typeof extract?.body === "string") {
     return { ...extract, body: [extract.body] };
   }
   return extract;
+}
+
+function isValidBodyEntry(entry) {
+  return typeof entry === "string" && entry.length > 0;
 }
 
 export function isValidExtractConfig(extract) {
@@ -87,9 +101,9 @@ export function isValidExtractConfig(extract) {
 
   if (config.body != null) {
     if (typeof config.body === "string") {
-      if (!config.body.includes("{") && !BODY_STEPS[config.body]) return false;
+      if (!isValidBodyEntry(config.body)) return false;
     } else if (Array.isArray(config.body)) {
-      if (!config.body.every((s) => BODY_STEPS[s])) return false;
+      if (!config.body.length || !config.body.every(isValidBodyEntry)) return false;
     } else {
       return false;
     }

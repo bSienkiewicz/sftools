@@ -149,7 +149,7 @@ export function getCaseInfoFromPdTitle(rawTitle, remoteMapping = null) {
 }
 
 export async function fetchRemoteAlertMapping() {
-  for (const branch of ["main", "master"]) {
+  for (const branch of ["master", "main"]) {
     try {
       const res = await fetch(
         `https://raw.githubusercontent.com/${GH_USERNAME}/${GH_REPO}/${branch}/${MAPPING_PATH}`,
