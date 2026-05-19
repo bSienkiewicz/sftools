@@ -1,0 +1,330 @@
+{
+    "alerts": [
+      {
+        "alert_key": "19b84e7e-a5e6-4a52-ad2a-f1ce1bde0d14",
+        "body": {
+          "cef_details": {
+            "client": "New Relic",
+            "client_url": "https://one.newrelic.com",
+            "contexts": [
+              {
+                "href": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+                "text": "Issue Page",
+                "type": "link"
+              }
+            ],
+            "creation_time": "2026-04-13T22:38:38.745Z",
+            "dedup_key": "19b84e7e-a5e6-4a52-ad2a-f1ce1bde0d14",
+            "description": "PRD DM-SCHEDULER-DM2 ECS query result is > 0.5 on '***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW'",
+            "details": {
+              "account_id": 400000,
+              "account_name": "Metapack_1 PRD",
+              "closed_violations_count": {
+                "critical": 0,
+                "total": 0,
+                "warning": 0
+              },
+              "condition_family_id": 40772129,
+              "condition_id": 40772129,
+              "condition_name": "***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW",
+              "current_state": "open",
+              "details": "PRD DM-SCHEDULER-DM2 ECS query result is > 0.5 on '***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW'",
+              "duration": 8533,
+              "event_type": "INCIDENT",
+              "incident_acknowledge_url": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION&action=ack",
+              "incident_id": 1776119918200018,
+              "incident_url": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+              "issue_id": "d6103cac-917b-448d-baf7-ef593d31c035",
+              "metadata": {
+                "entity.name": "PRD DM-SCHEDULER-DM2 ECS",
+                "entity.type": "APPLICATION"
+              },
+              "open_violations_count": {
+                "critical": 1,
+                "total": 1,
+                "warning": 0
+              },
+              "policy_name": "PRD - MPM - APP - SHD - Edi Failed Transfer LOW",
+              "policy_url": "https://one.newrelic.com/alerts/condition-builder/policy-entity/NDAwMDAwfEFJT1BTfFBPTElDWXwxMjgwNzMx",
+              "radar_entity": {
+                "accountId": "400000",
+                "domain": "NRQL",
+                "domainId": "d6103cac-917b-448d-baf7-ef593d31c035",
+                "entityGuid": "NDAwMDAwfEFQTXxBUFBMSUNBVElPTnw1MzgwMDU5MTY",
+                "name": "Crocs_GLS10_DM2",
+                "type": "Query"
+              },
+              "runbook_url": "https://auctane.atlassian.net/wiki/spaces/GSKB/pages/4341137653/How+to+retransfer+DM+manifest+file",
+              "severity": "CRITICAL",
+              "state": "ACTIVATED",
+              "status": "OPEN",
+              "targets": [
+                {
+                  "id": "NDAwMDAwfEFQTXxBUFBMSUNBVElPTnw1MzgwMDU5MTY",
+                  "labels": {
+                    "ClientcontractName": "Crocs",
+                    "ClientcontractXLIdentifier": "GLS10",
+                    "DB": "DM2",
+                    "NewRelic": "targetLabels",
+                    "account": "Metapack_1 PRD",
+                    "accountId": "400000",
+                    "agentVersion": "9.1.0",
+                    "dataAccountId": "400000",
+                    "enabled": "true",
+                    "feature": "threads",
+                    "id": "40772129",
+                    "instrumentation.name": "apm",
+                    "instrumentation.provider": "newRelic",
+                    "isEcsFargateApp": "true",
+                    "language": "java",
+                    "nr.alerts.conditionId": "40772129",
+                    "nr.alerts.enabled": "true",
+                    "nr.alerts.policyId": "1280731",
+                    "nr.alerts.type": "NRQL Query",
+                    "nr.dt.enabled": "true",
+                    "nr.tracing": "standard",
+                    "policyId": "1280731",
+                    "trustedAccountId": "3095546",
+                    "type": "NRQL Query"
+                  },
+                  "link": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+                  "name": "Crocs_GLS10_DM2",
+                  "product": "NRQL",
+                  "type": "Query"
+                }
+              ],
+              "timestamp": 1776119918745,
+              "timestamp_utc_string": "2026-04-13T22:38:38.745Z",
+              "version": "1.0",
+              "violation_callback_url": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+              "violation_chart_url": "https://gorgon.nr-assets.net/image/93516bd3-ca20-46d9-a6c8-8260f5faa6c5?config.legend.enabled=false&width=400&height=210"
+            },
+            "event_class": null,
+            "message": "PRD DM-SCHEDULER-DM2 ECS query result is > 0.5 on '***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW'",
+            "mutations": [],
+            "priority": null,
+            "reporter_component": null,
+            "reporter_location": null,
+            "service_group": null,
+            "severity": "critical",
+            "source_component": null,
+            "source_location": null,
+            "source_origin": "[\"newrelic\"]",
+            "urgency": null,
+            "version": "1.0"
+          },
+          "contexts": [
+            {
+              "href": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+              "text": "Issue Page",
+              "type": "link"
+            }
+          ],
+          "details": {
+            "account_id": 400000,
+            "account_name": "Metapack_1 PRD",
+            "closed_violations_count": {
+              "critical": 0,
+              "total": 0,
+              "warning": 0
+            },
+            "condition_family_id": 40772129,
+            "condition_id": 40772129,
+            "condition_name": "***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW",
+            "current_state": "open",
+            "details": "PRD DM-SCHEDULER-DM2 ECS query result is > 0.5 on '***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW'",
+            "duration": 8533,
+            "event_type": "INCIDENT",
+            "incident_acknowledge_url": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION&action=ack",
+            "incident_id": 1776119918200018,
+            "incident_url": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+            "issue_id": "d6103cac-917b-448d-baf7-ef593d31c035",
+            "metadata": {
+              "entity.name": "PRD DM-SCHEDULER-DM2 ECS",
+              "entity.type": "APPLICATION"
+            },
+            "open_violations_count": {
+              "critical": 1,
+              "total": 1,
+              "warning": 0
+            },
+            "policy_name": "PRD - MPM - APP - SHD - Edi Failed Transfer LOW",
+            "policy_url": "https://one.newrelic.com/alerts/condition-builder/policy-entity/NDAwMDAwfEFJT1BTfFBPTElDWXwxMjgwNzMx",
+            "radar_entity": {
+              "accountId": "400000",
+              "domain": "NRQL",
+              "domainId": "d6103cac-917b-448d-baf7-ef593d31c035",
+              "entityGuid": "NDAwMDAwfEFQTXxBUFBMSUNBVElPTnw1MzgwMDU5MTY",
+              "name": "Crocs_GLS10_DM2",
+              "type": "Query"
+            },
+            "runbook_url": "https://auctane.atlassian.net/wiki/spaces/GSKB/pages/4341137653/How+to+retransfer+DM+manifest+file",
+            "severity": "CRITICAL",
+            "state": "ACTIVATED",
+            "status": "OPEN",
+            "targets": [
+              {
+                "id": "NDAwMDAwfEFQTXxBUFBMSUNBVElPTnw1MzgwMDU5MTY",
+                "labels": {
+                  "ClientcontractName": "Crocs",
+                  "ClientcontractXLIdentifier": "GLS10",
+                  "DB": "DM2",
+                  "NewRelic": "targetLabels",
+                  "account": "Metapack_1 PRD",
+                  "accountId": "400000",
+                  "agentVersion": "9.1.0",
+                  "dataAccountId": "400000",
+                  "enabled": "true",
+                  "feature": "threads",
+                  "id": "40772129",
+                  "instrumentation.name": "apm",
+                  "instrumentation.provider": "newRelic",
+                  "isEcsFargateApp": "true",
+                  "language": "java",
+                  "nr.alerts.conditionId": "40772129",
+                  "nr.alerts.enabled": "true",
+                  "nr.alerts.policyId": "1280731",
+                  "nr.alerts.type": "NRQL Query",
+                  "nr.dt.enabled": "true",
+                  "nr.tracing": "standard",
+                  "policyId": "1280731",
+                  "trustedAccountId": "3095546",
+                  "type": "NRQL Query"
+                },
+                "link": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+                "name": "Crocs_GLS10_DM2",
+                "product": "NRQL",
+                "type": "Query"
+              }
+            ],
+            "timestamp": 1776119918745,
+            "timestamp_utc_string": "2026-04-13T22:38:38.745Z",
+            "version": "1.0",
+            "violation_callback_url": "https://radar-api.service.newrelic.com/accounts/400000/issues/d6103cac-917b-448d-baf7-ef593d31c035?notifier=PAGERDUTY_SERVICE_INTEGRATION",
+            "violation_chart_url": "https://gorgon.nr-assets.net/image/93516bd3-ca20-46d9-a6c8-8260f5faa6c5?config.legend.enabled=false&width=400&height=210"
+          },
+          "type": "alert_body"
+        },
+        "created_at": "2026-04-13T22:38:48Z",
+        "first_trigger_log_entry": {
+          "html_url": "https://auctane.pagerduty.com/alerts/Q13FFV6CYFV4E6/log_entries/ROMNXQGD4KTNNJ1KWBRXR0CZ8Z",
+          "id": "ROMNXQGD4KTNNJ1KWBRXR0CZ8Z",
+          "self": "https://api.pagerduty.com/log_entries/ROMNXQGD4KTNNJ1KWBRXR0CZ8Z",
+          "summary": "Triggered through the API.",
+          "type": "trigger_log_entry_reference"
+        },
+        "html_url": "https://auctane.pagerduty.com/alerts/Q13FFV6CYFV4E6",
+        "id": "Q13FFV6CYFV4E6",
+        "incident": {
+          "html_url": "https://auctane.pagerduty.com/incidents/Q0R79167NJXBAW",
+          "id": "Q0R79167NJXBAW",
+          "self": "https://api.pagerduty.com/incidents/Q0R79167NJXBAW",
+          "summary": "[#560606] PRD DM-SCHEDULER-DM2 ECS query result is > 0.5 on '***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW'",
+          "type": "incident_reference"
+        },
+        "integration": {
+          "html_url": "https://auctane.pagerduty.com/services/PGQFFOU/integrations/PVY0CF3",
+          "id": "PVY0CF3",
+          "self": "https://api.pagerduty.com/services/PGQFFOU/integrations/PVY0CF3",
+          "summary": "PRD - MPM - APP - SHD - EDI FAILED TRANSFER PD LOW INTEGRATION",
+          "type": "generic_events_api_inbound_integration_reference"
+        },
+        "privilege": null,
+        "resolved_at": "2026-04-14T07:38:53Z",
+        "self": "https://api.pagerduty.com/alerts/Q13FFV6CYFV4E6",
+        "service": {
+          "acknowledgement_timeout": null,
+          "addons": [],
+          "alert_creation": "create_alerts_and_incidents",
+          "alert_grouping": null,
+          "alert_grouping_parameters": {
+            "config": null,
+            "type": null
+          },
+          "alert_grouping_timeout": null,
+          "auto_resolve_timeout": null,
+          "created_at": "2021-09-03T10:22:37Z",
+          "description": null,
+          "escalation_policy": {
+            "html_url": "https://auctane.pagerduty.com/escalation_policies/PXHUWJQ",
+            "id": "PXHUWJQ",
+            "self": "https://api.pagerduty.com/escalation_policies/PXHUWJQ",
+            "summary": "PRD - MPM - APP - SHD - Edi Failed Transfer-LOW",
+            "type": "escalation_policy_reference"
+          },
+          "html_url": "https://auctane.pagerduty.com/service-directory/PGQFFOU",
+          "id": "PGQFFOU",
+          "incident_urgency_rule": {
+            "during_support_hours": {
+              "type": "constant",
+              "urgency": "high"
+            },
+            "outside_support_hours": {
+              "type": "constant",
+              "urgency": "low"
+            },
+            "type": "use_support_hours"
+          },
+          "integrations": [
+            {
+              "html_url": "https://auctane.pagerduty.com/services/PGQFFOU/integrations/PVY0CF3",
+              "id": "PVY0CF3",
+              "self": "https://api.pagerduty.com/services/PGQFFOU/integrations/PVY0CF3",
+              "summary": "PRD - MPM - APP - SHD - EDI FAILED TRANSFER PD LOW INTEGRATION",
+              "type": "generic_events_api_inbound_integration_reference"
+            }
+          ],
+          "last_incident_timestamp": "2026-05-18T16:21:58Z",
+          "name": "PRD - MPM - APP - SHD - Edi Failed Transfer-LO",
+          "scheduled_actions": [
+            {
+              "at": {
+                "name": "support_hours_start",
+                "type": "named_time"
+              },
+              "to_urgency": "high",
+              "type": "urgency_change"
+            }
+          ],
+          "self": "https://api.pagerduty.com/services/PGQFFOU",
+          "status": "warning",
+          "summary": "PRD - MPM - APP - SHD - Edi Failed Transfer-LO",
+          "support_hours": {
+            "days_of_week": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ],
+            "end_time": "17:30:00",
+            "start_time": "08:00:00",
+            "time_zone": "Europe/Warsaw",
+            "type": "fixed_time_per_day"
+          },
+          "teams": [
+            {
+              "html_url": "https://auctane.pagerduty.com/teams/PGWBEI6",
+              "id": "PGWBEI6",
+              "self": "https://api.pagerduty.com/teams/PGWBEI6",
+              "summary": "Metapack Customer Support",
+              "type": "team_reference"
+            }
+          ],
+          "type": "service",
+          "updated_at": "2025-07-14T12:20:48Z"
+        },
+        "severity": "critical",
+        "status": "resolved",
+        "summary": "PRD DM-SCHEDULER-DM2 ECS query result is > 0.5 on '***CRITICAL*** - SHD - DM - Edi Failed Transfer LOW'",
+        "suppressed": false,
+        "type": "alert"
+      }
+    ],
+    "limit": 25,
+    "more": false,
+    "offset": 0,
+    "total": null
+  }

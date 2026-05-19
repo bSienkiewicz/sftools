@@ -3,11 +3,57 @@ import toast from "react-hot-toast";
 import { applyIncidentFormDefaults } from "./selectComboboxOption";
 import { applyIncidentLookupDefaults } from "./selectLookupOption";
 import { fillSubjectField, fillDescriptionField } from "./fillSubjectField";
+import { STORAGE_KEYS } from "../../constants/storage";
 import {
   BASE_FORM_DEFAULTS,
+  bundledAlertMapping,
   getCaseInfoFromPdTitle,
   INCIDENT_LOOKUP_DEFAULTS,
 } from "./incidentAlertTypes";
+
+function getMappingVersionInfo(mapping, source) {
+  const datePart = mapping.date ? ` · ${mapping.date}` : "";
+  return {
+    version: mapping.version,
+    date: mapping.date ?? null,
+    source,
+    label: `Mapping v${mapping.version}${datePart} (${source})`,
+  };
+}
+
+async function fetchAlertMappingWithUi() {
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING);
+  const useRemote = stored[STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING] !== false;
+
+  if (useRemote) {
+    toast.loading("Fetching alert mapping…", { id: "alert-mapping" });
+  }
+
+  try {
+    const result = await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage({ action: "fetchAlertMapping" }, (response) => {
+        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+        else resolve(response ?? { ok: false, mapping: bundledAlertMapping, source: "bundled" });
+      });
+    });
+    const mapping = result.mapping ?? bundledAlertMapping;
+    const source = result.source ?? "bundled";
+    const versionInfo = getMappingVersionInfo(mapping, source);
+
+    if (result.remoteDisabled) {
+      toast.success(`${versionInfo.label} (remote off)`, { id: "alert-mapping" });
+    } else if (result.ok) {
+      toast.success(versionInfo.label, { id: "alert-mapping" });
+    } else {
+      toast.success(`${versionInfo.label} (fallback)`, { id: "alert-mapping" });
+    }
+    return { mapping, versionInfo };
+  } catch {
+    const versionInfo = getMappingVersionInfo(bundledAlertMapping, "bundled");
+    toast.success(`${versionInfo.label} (fallback)`, { id: "alert-mapping" });
+    return { mapping: bundledAlertMapping, versionInfo };
+  }
+}
 
 const PD_INCIDENT_URL_REGEX = /^https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}$/;
 const INVALID_URL_MSG = "Invalid PagerDuty URL";
@@ -77,6 +123,7 @@ export default function NewIncidentGeneratorControls({
   const initialUrlConsumed = React.useRef(false);
   const generateRunId = React.useRef(0);
   const [batchWaitingForFill, setBatchWaitingForFill] = React.useState(false);
+  const [mappingVersionInfo, setMappingVersionInfo] = React.useState(null);
 
   const getScope = () =>
     modalScope ?? containerElement?.closest(".slds-modal") ?? document.body;
@@ -86,9 +133,15 @@ export default function NewIncidentGeneratorControls({
       const scope = getScope();
       const runId = (generateRunId.current += 1);
 
-      const fetchTitlePromise = new Promise((resolve, reject) => {
+      const fetchTitlePromise = (mapping) =>
+        new Promise((resolve, reject) => {
         chrome.runtime.sendMessage(
-          { action: "fetchPagerDutyIncidentTitle", url: urlToFetch },
+          {
+            action: "fetchPagerDutyIncidentTitle",
+            url: urlToFetch,
+            mapping,
+            skipMappingFetch: true,
+          },
           (response) => {
             if (runId !== generateRunId.current) return; // Ignore late response (e.g. after timeout)
             if (chrome.runtime.lastError) {
@@ -109,18 +162,22 @@ export default function NewIncidentGeneratorControls({
         );
       });
 
-      const fetchWithTimeout = Promise.race([
-        fetchTitlePromise,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(FETCH_TIMEOUT_MSG)), FETCH_TITLE_TIMEOUT_MS),
-        ),
-      ]);
-
       const promise = (async () => {
+        const { mapping, versionInfo } = await fetchAlertMappingWithUi();
+        if (runId !== generateRunId.current) return;
+        setMappingVersionInfo(versionInfo);
+
+        const fetchWithTimeout = Promise.race([
+          fetchTitlePromise(mapping),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error(FETCH_TIMEOUT_MSG)), FETCH_TITLE_TIMEOUT_MS),
+          ),
+        ]);
+
         const response = await fetchWithTimeout;
         if (runId !== generateRunId.current) return;
         console.log("[SF Tools] Failed transfer targets:", response.targets != null ? response.targets : "(not available)");
-        const caseInfo = getCaseInfoFromPdTitle(response.title);
+        const caseInfo = getCaseInfoFromPdTitle(response.title, mapping);
         const jsonFromTargets = extractJsonFromTargets(response.targets); 
         const { subjectToFill, formDefaults } = buildSubjectAndFormDefaults(caseInfo, response.title, jsonFromTargets);
 
@@ -170,7 +227,7 @@ export default function NewIncidentGeneratorControls({
   );
 
   const applyBatchFill = React.useCallback(
-    (title, url, targets) => {
+    (title, url, targets, mapping) => {
       setValue((prev) => prev || url || "");
       toast.dismiss("pd-batch-fill");
       if (title == null) {
@@ -180,7 +237,7 @@ export default function NewIncidentGeneratorControls({
       }
       console.log("[SF Tools] Failed transfer targets:", targets != null ? targets : "(not available)");
       const scope = getScope();
-      const caseInfo = getCaseInfoFromPdTitle(title);
+      const caseInfo = getCaseInfoFromPdTitle(title, mapping ?? null);
       const jsonFromTargets = extractJsonFromTargets(targets);
       const { subjectToFill, formDefaults } = buildSubjectAndFormDefaults(caseInfo, title, jsonFromTargets);
 
@@ -232,7 +289,9 @@ export default function NewIncidentGeneratorControls({
       chrome.runtime.sendMessage({ action: "getPendingFillForMyTab" }, (data) => {
         if (data && (data.title != null || data.url)) {
           setBatchWaitingForFill(false);
-          applyBatchFill(data.title ?? null, data.url ?? "", data.targets ?? null);
+          const versionInfo = getMappingVersionInfo(data.mapping, data.mappingSource ?? "bundled");
+          setMappingVersionInfo(versionInfo);
+          applyBatchFill(data.title ?? null, data.url ?? "", data.targets ?? null, data.mapping ?? null);
         }
       });
     }, BATCH_FILL_POLL_MS);
@@ -291,6 +350,7 @@ export default function NewIncidentGeneratorControls({
     setStatus("idle");
     setBuilding(false);
     setDetectedAlert(null);
+    setMappingVersionInfo(null);
     if (opts?.keepUrl !== true) setValue("");
   };
 
@@ -363,8 +423,24 @@ export default function NewIncidentGeneratorControls({
           {status === "loading" || batchWaitingForFill ? "Loading…" : "Generate"}
         </button>
       </form>
+      {mappingVersionInfo && (
+        <div
+          className="slds-text-body_small text-xs p-2 rounded border"
+          style={{ marginTop: "2px" }}
+        >
+          Alert mapping:{" "}
+          <span className="font-bold">v{mappingVersionInfo.version}</span>
+          {mappingVersionInfo.date != null && (
+            <>
+              {" "}
+              · <span className="font-bold">{mappingVersionInfo.date}</span>
+            </>
+          )}
+          <span> ({mappingVersionInfo.source})</span>
+        </div>
+      )}
       {detectedAlert?.rawTitle != null && (
-        <div className="slds-text-body_small slds-text-color_weak text-xs" style={{ marginTop: "4px" }}>
+        <div className="slds-text-body_small text-xs p-2 rounded border" style={{ marginTop: "4px" }}>
           Title: <br/><span className="font-bold">{detectedAlert.rawTitle}</span>
         </div>
       )}
