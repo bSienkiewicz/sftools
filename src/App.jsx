@@ -12,6 +12,13 @@ import { arrayMove } from "@dnd-kit/sortable";
 import SortableItem from "./components/SortableItem";
 import SettingsModal from "./modals/SettingsModal";
 import { STORAGE_KEYS } from "./constants/storage";
+import {
+  buildBackupPayload,
+  parseBackupFile,
+  readSettingsFromStorage,
+  readTemplatesFromStorage,
+  settingsToStorage,
+} from "./lib/backupExport";
 import { LucideSquareStack } from "lucide-react";
 import BatchAddIncidentsModal from "./modals/BatchAddIncidentsModal";
 
@@ -143,16 +150,22 @@ function App() {
     setEditingMessage(null);
   };
 
-  const handleExport = () => {
-    const jsonString = JSON.stringify(messages);
+  const handleExport = async () => {
+    const [templates, settings] = await Promise.all([
+      readTemplatesFromStorage(),
+      readSettingsFromStorage(),
+    ]);
+    const payload = buildBackupPayload(templates.length ? templates : messages, settings);
+    const jsonString = JSON.stringify(payload, null, 2);
     const blob = new Blob([jsonString], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const now = new Date().toISOString().replace(/T|Z/g, "_").slice(0, -5);
 
     a.href = url;
-    a.download = `sftools_import_${now}.json`;
+    a.download = `sftools_backup_${now}.json`;
     a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleImport = () => {
@@ -161,22 +174,22 @@ function App() {
     fileInput.accept = ".json";
     fileInput.onchange = (e) => {
       const file = e.target.files[0];
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const jsonData = JSON.parse(e.target.result);
-        
-        // Handle backward compatibility - ensure aliases are preserved if they exist
-        const processedData = jsonData.map(category => ({
-          ...category,
-          messages: category.messages.map(msg => ({
-            ...msg,
-            // Preserve existing alias if it exists, otherwise don't add it
-            ...(msg.alias && { alias: msg.alias })
-          }))
-        }));
-        
-        setMessages(processedData);
-        chrome.storage.local.set({ button_messages: processedData });
+      reader.onload = (event) => {
+        try {
+          const jsonData = JSON.parse(event.target.result);
+          const { templates, settings } = parseBackupFile(jsonData);
+          const storageUpdate = {
+            [STORAGE_KEYS.BUTTON_MESSAGES]: templates,
+            ...settingsToStorage(settings),
+          };
+          setMessages(templates);
+          chrome.storage.local.set(storageUpdate);
+        } catch (err) {
+          console.error("[SF Tools] Import failed:", err);
+          window.alert(err.message || "Import failed. Check the backup file format.");
+        }
       };
       reader.readAsText(file);
     };
