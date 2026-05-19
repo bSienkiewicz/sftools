@@ -1,5 +1,10 @@
 import { STORAGE_KEYS } from "./constants/storage";
 import { getCaseInfoFromPdTitle } from "./content/new-incident/incidentAlertTypes/index.js";
+import {
+  bundledAlertMapping,
+  fetchRemoteAlertMapping,
+  resolveAlertMapping,
+} from "./content/new-incident/incidentAlertTypes/index.js";
 
 const uuidv4 = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -333,6 +338,16 @@ function observePagerDutyIncidentTitle(tabId, selector, timeoutMs) {
 
 const pendingPagerDutyRequests = new Map();
 const batchPdTabToSfTab = new Map();
+/** Mapping for the current batch session (always alert-mapping.json or remote). */
+let batchSessionMapping = bundledAlertMapping;
+let batchSessionMappingSource = "bundled";
+
+function getMappingForPdTab(pdTabId) {
+  const pending = pendingPagerDutyRequests.get(pdTabId);
+  if (pending && "mapping" in pending) return pending.mapping;
+  if (batchPdTabToSfTab.has(pdTabId)) return batchSessionMapping;
+  return bundledAlertMapping;
+}
 
 function onPagerDutyTabUpdated(tabId, changeInfo) {
   if (changeInfo.status !== "complete") return;
@@ -400,6 +415,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     sendResponse({ ok: true });
 
+    (async () => {
+      const mappingResult = await fetchRemoteAlertMapping();
+      batchSessionMapping = mappingResult.mapping;
+      batchSessionMappingSource = mappingResult.source;
+      console.log(
+        `[SF Tools] Batch alert mapping: v${mappingResult.mapping.version} (${mappingResult.source})`,
+      );
+
     const tabIds = [];
     let index = 0;
     function openNextPair() {
@@ -439,6 +462,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
     }
     openNextPair();
+    })();
     return true;
   }
 
@@ -471,11 +495,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message.action === "CHECK_NEED_TARGETS") {
     const title = message.title;
-    const info = typeof title === "string" && title.trim() ? getCaseInfoFromPdTitle(title.trim()) : null;
+    const pdTabId = sender.tab?.id;
+    const mapping = pdTabId != null ? getMappingForPdTab(pdTabId) : null;
+    const info =
+      typeof title === "string" && title.trim()
+        ? getCaseInfoFromPdTitle(title.trim(), mapping)
+        : null;
     const needTargets =
       info &&
       (info.alertTypeName === "DM Failed Transfer" || info.alertTypeName === "MPM Failed Transfer");
     sendResponse(!!needTargets);
+    return true;
+  }
+  if (message.action === "fetchAlertMapping") {
+    fetchRemoteAlertMapping().then((result) => sendResponse(result));
     return true;
   }
   if (message.action !== "fetchPagerDutyIncidentTitle") return;
@@ -493,13 +526,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  chrome.tabs.create({ url, active: false }, (tab) => {
-    if (chrome.runtime.lastError) {
-      sendResponse({ ok: false, error: chrome.runtime.lastError.message });
-      return true;
-    }
-    pendingPagerDutyRequests.set(tab.id, { senderTabId, sendResponse });
-  });
+  (async () => {
+    const mapping = message.skipMappingFetch
+      ? resolveAlertMapping(message.mapping)
+      : (await fetchRemoteAlertMapping()).mapping;
+
+    chrome.tabs.create({ url, active: false }, (tab) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+      pendingPagerDutyRequests.set(tab.id, { senderTabId, sendResponse, mapping });
+    });
+  })();
 
   return true;
 });
@@ -513,7 +552,12 @@ chrome.runtime.onMessage.addListener((message) => {
 
   if (pending) {
     pendingPagerDutyRequests.delete(tabId);
-    pending.sendResponse({ ok: true, title: title ?? null, targets: targets ?? null });
+    pending.sendResponse({
+      ok: true,
+      title: title ?? null,
+      targets: targets ?? null,
+      mapping: pending.mapping ?? null,
+    });
     chrome.storage.local.get(STORAGE_KEYS.AUTO_CLOSE_PD_PAGES, (result) => {
       const autoClose = result[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true;
       if (autoClose) {
@@ -524,7 +568,13 @@ chrome.runtime.onMessage.addListener((message) => {
   }
   if (batch) {
     batchPdTabToSfTab.delete(tabId);
-    pendingFillBySfTab.set(batch.sfTabId, { title: title ?? null, url: batch.url, targets: targets ?? null });
+    pendingFillBySfTab.set(batch.sfTabId, {
+      title: title ?? null,
+      url: batch.url,
+      targets: targets ?? null,
+      mapping: batchSessionMapping,
+      mappingSource: batchSessionMappingSource,
+    });
     chrome.storage.local.get(STORAGE_KEYS.AUTO_CLOSE_PD_PAGES, (result) => {
       const autoClose = result[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true;
       if (autoClose) {
