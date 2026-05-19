@@ -150,15 +150,16 @@ export function getCaseInfoFromPdTitle(rawTitle, remoteMapping = null) {
 
 export async function fetchRemoteAlertMapping() {
   for (const branch of ["master", "main"]) {
+    const url = `https://raw.githubusercontent.com/${GH_USERNAME}/${GH_REPO}/${branch}/${MAPPING_PATH}`;
     try {
-      const res = await fetch(
-        `https://raw.githubusercontent.com/${GH_USERNAME}/${GH_REPO}/${branch}/${MAPPING_PATH}`,
-      );
+      // Bypass extension / CDN cache so version bumps on GitHub are picked up immediately.
+      const res = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) continue;
       const data = await res.json();
       if (validateMapping(data)) {
         return { ok: true, mapping: data, source: "remote" };
       }
+      console.warn("[SF Tools] Remote alert mapping failed validation:", branch);
     } catch (err) {
       console.warn("[SF Tools] Alert mapping fetch failed:", branch, err);
     }

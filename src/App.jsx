@@ -21,6 +21,8 @@ import {
 } from "./lib/backupExport";
 import { LucideSquareStack } from "lucide-react";
 import BatchAddIncidentsModal from "./modals/BatchAddIncidentsModal";
+import { LucideBadgePlus } from "lucide-react";
+import { NEW_CASE_BASE_URL } from "./modals/BatchAddIncidentsModal";
 
 function App() {
   const [messages, setMessages] = React.useState([]);
@@ -232,6 +234,12 @@ function App() {
     });
   };
 
+  const openNewIncidentPage = () => {
+    chrome.tabs.create({
+      url: NEW_CASE_BASE_URL,
+    });
+  };
+
   const handleAddNewIncidentHelper = () => {
     setNewIncidentHelperModalVisible(true);
   };
@@ -268,10 +276,20 @@ function App() {
       
       <div className="flex-grow overflow-auto space-y-6 relative p-8">
         {newIncidentHelperEnabled && (
-          <button className="flex items-center gap-2 text-white bg-blue-500 rounded-md p-2 w-full" onClick={handleAddNewIncidentHelper}>
+        <div className="flex items-center gap-2">
+          <button className="flex-1 flex items-center gap-2 text-white bg-blue-500 rounded-md p-2" onClick={handleAddNewIncidentHelper}>
             <LucideSquareStack size={16} />
             <span>Batch add new PD incidents</span>
           </button>
+          <button
+            type="button"
+            className="bg-blue-500 text-white rounded-md p-2"
+            title="Open New Case in Salesforce"
+            onClick={openNewIncidentPage}
+          >
+            <LucideBadgePlus size={16} />
+          </button>
+          </div>
         )}
 
         {messages.map((category) => (

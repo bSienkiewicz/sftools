@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 
 const PD_INCIDENT_URL_REGEX = /https:\/\/auctane\.pagerduty\.com\/incidents\/[a-zA-Z0-9]{14}/g;
 
-const NEW_CASE_BASE_URL = "https://stampsdotcom.lightning.force.com/lightning/o/Case/new?count=1";
+export const NEW_CASE_BASE_URL = "https://stampsdotcom.lightning.force.com/lightning/o/Case/new?count=1";
 
 function extractPagerDutyUrls(text) {
   if (!text?.trim()) return [];

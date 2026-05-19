@@ -11,13 +11,22 @@ import {
   INCIDENT_LOOKUP_DEFAULTS,
 } from "./incidentAlertTypes";
 
-function getMappingVersionInfo(mapping, source) {
+function getMappingDisplaySource({ ok, source, remoteDisabled }) {
+  if (remoteDisabled) return "local, remote disabled";
+  if (ok && source === "remote") return "remote";
+  if (!ok) return "local, remote unavailable";
+  return source ?? "local";
+}
+
+function getMappingVersionInfo(mapping, fetchMeta) {
+  const displaySource = getMappingDisplaySource(fetchMeta);
   const datePart = mapping.date ? ` · ${mapping.date}` : "";
   return {
     version: mapping.version,
     date: mapping.date ?? null,
-    source,
-    label: `Mapping v${mapping.version}${datePart} (${source})`,
+    source: displaySource,
+    remoteOk: fetchMeta.ok === true && fetchMeta.source === "remote",
+    label: `Mapping v${mapping.version}${datePart} (${displaySource})`,
   };
 }
 
@@ -37,20 +46,22 @@ async function fetchAlertMappingWithUi() {
       });
     });
     const mapping = result.mapping ?? bundledAlertMapping;
-    const source = result.source ?? "bundled";
-    const versionInfo = getMappingVersionInfo(mapping, source);
+    const fetchMeta = {
+      ok: result.ok === true,
+      source: result.source ?? "bundled",
+      remoteDisabled: result.remoteDisabled === true,
+    };
+    const versionInfo = getMappingVersionInfo(mapping, fetchMeta);
 
-    if (result.remoteDisabled) {
-      toast.success(`${versionInfo.label} (remote off)`, { id: "alert-mapping" });
-    } else if (result.ok) {
-      toast.success(versionInfo.label, { id: "alert-mapping" });
-    } else {
-      toast.success(`${versionInfo.label} (fallback)`, { id: "alert-mapping" });
-    }
+    toast.success(versionInfo.label, { id: "alert-mapping" });
     return { mapping, versionInfo };
   } catch {
-    const versionInfo = getMappingVersionInfo(bundledAlertMapping, "bundled");
-    toast.success(`${versionInfo.label} (fallback)`, { id: "alert-mapping" });
+    const versionInfo = getMappingVersionInfo(bundledAlertMapping, {
+      ok: false,
+      source: "bundled",
+      remoteDisabled: false,
+    });
+    toast.success(`${versionInfo.label}`, { id: "alert-mapping" });
     return { mapping: bundledAlertMapping, versionInfo };
   }
 }
@@ -289,7 +300,12 @@ export default function NewIncidentGeneratorControls({
       chrome.runtime.sendMessage({ action: "getPendingFillForMyTab" }, (data) => {
         if (data && (data.title != null || data.url)) {
           setBatchWaitingForFill(false);
-          const versionInfo = getMappingVersionInfo(data.mapping, data.mappingSource ?? "bundled");
+          const mappingSource = data.mappingSource ?? "bundled";
+          const versionInfo = getMappingVersionInfo(data.mapping ?? bundledAlertMapping, {
+            ok: mappingSource === "remote",
+            source: mappingSource,
+            remoteDisabled: false,
+          });
           setMappingVersionInfo(versionInfo);
           applyBatchFill(data.title ?? null, data.url ?? "", data.targets ?? null, data.mapping ?? null);
         }
