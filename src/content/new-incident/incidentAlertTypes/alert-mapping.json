@@ -224,6 +224,26 @@
       "formOverrides": [{ "fieldLabel": "Type", "value": "System Performance" }]
     },
     {
+      "id": "dm-allocation-customer-error-percentage",
+      "name": "DM Allocation Customer (Error Percentage)",
+      "classify": {
+        "rawRegex": "DM-CARRIERS-DMA",
+        "rawFlags": "i",
+        "requiresBodyForMatch": true,
+        "bodyKeywords": ["Error Percentage", "Allocation"]
+      },
+      "extract": {
+        "body": "normalizeBodyDefault",
+        "prefixFromBodyMatch": {
+          "pattern": "Allocation\\s+([A-Za-z0-9]+)\\s+<",
+          "flags": "i",
+          "uppercase": true
+        }
+      },
+      "subjectFormat": "DM|{prefix}|{body}",
+      "formOverrides": [{ "fieldLabel": "Type", "value": "Allocation" }]
+    },
+    {
       "id": "dm-allocation-error-percentage",
       "name": "DM Allocation (Error Percentage)",
       "classify": {

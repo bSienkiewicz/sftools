@@ -59,6 +59,16 @@ const tests = [
     },
   },
   {
+    name: "DM Allocation Customer ASOS (DMA carrier)",
+    rawTitle:
+      "PRD DM-CARRIERS-DMA ECS query result is >= 10.0 for 3 minutes on '***CRITICAL*** - DM02 - DM Allocation ASOS <EVRi WorldWide> (730) Error Percentage'",
+    expected: {
+      alertTypeName: "DM Allocation Customer (Error Percentage)",
+      type: "Allocation",
+      subject: "DM|ASOS|Allocation ASOS <EVRi WorldWide> (730) Error Percentage",
+    },
+  },
+  {
     name: "DM Allocation (Error Percentage)",
     rawTitle:
       "PRD DM-CARRIERS-DM1 ECS query result is >= 5.0 for 5 minutes on '***CRITICAL*** - DM02 - DM Allocation <FAN> (786) Error Percentage'",
