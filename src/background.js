@@ -1,10 +1,11 @@
 import { STORAGE_KEYS } from "./constants/storage";
-import { getCaseInfoFromPdTitle } from "./content/new-incident/incidentAlertTypes/index.js";
 import {
   bundledAlertMapping,
   fetchRemoteAlertMapping,
+  getCaseInfoFromPdTitle,
   resolveAlertMapping,
 } from "./content/new-incident/incidentAlertTypes/index.js";
+import { fetchIncidentFromPagerDutyApi } from "./content/new-incident/pagerDutyApi.js";
 
 const uuidv4 = () => {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -217,6 +218,49 @@ function initialSetup() {
       chrome.storage.local.set({ [STORAGE_KEYS.ANTI_IDLE_TOGGLE]: true });
     }
   });
+
+  chrome.storage.local.get(STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING, (result) => {
+    if (result[STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING] === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING]: true });
+    }
+  });
+
+  chrome.storage.local.get(STORAGE_KEYS.USE_PD_API, (result) => {
+    if (result[STORAGE_KEYS.USE_PD_API] === undefined) {
+      chrome.storage.local.set({ [STORAGE_KEYS.USE_PD_API]: false });
+    }
+  });
+}
+
+async function getPdApiSettings() {
+  const stored = await chrome.storage.local.get([
+    STORAGE_KEYS.USE_PD_API,
+    STORAGE_KEYS.PD_API_TOKEN,
+  ]);
+  return {
+    useApi: stored[STORAGE_KEYS.USE_PD_API] === true,
+    token: (stored[STORAGE_KEYS.PD_API_TOKEN] || "").trim(),
+  };
+}
+
+/** Returns { title, targets } when API is enabled and succeeds; otherwise null (caller falls back to scrape). */
+async function tryFetchPagerDutyViaApi(url) {
+  const { useApi, token } = await getPdApiSettings();
+  if (!useApi || !token) return null;
+  try {
+    return await fetchIncidentFromPagerDutyApi(url, token);
+  } catch (err) {
+    console.warn("[SF Tools] PD API failed, falling back to scrape:", err);
+    return null;
+  }
+}
+
+async function resolveAlertMappingForUse() {
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING);
+  if (stored[STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING] === false) {
+    return { ok: false, mapping: bundledAlertMapping, source: "bundled", remoteDisabled: true };
+  }
+  return fetchRemoteAlertMapping();
 }
 
 // ----- PagerDuty incident title fetch (for New Case: Incident) -----
@@ -416,7 +460,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
 
     (async () => {
-      const mappingResult = await fetchRemoteAlertMapping();
+      const mappingResult = await resolveAlertMappingForUse();
       batchSessionMapping = mappingResult.mapping;
       batchSessionMappingSource = mappingResult.source;
       console.log(
@@ -446,19 +490,35 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           tabIds.push(sfTab.id);
           tabIdToPdUrl.set(sfTab.id, JSON.stringify({ url: pdUrl, batch: true }));
         }
-        chrome.tabs.create({ url: pdUrl, active: false }, (pdTab) => {
-          if (pdTab?.id) {
-            tabIds.push(pdTab.id);
-            batchPdTabToSfTab.set(pdTab.id, { sfTabId: sfTab?.id, url: pdUrl });
-            // Fallback: if "complete" never fires (e.g. tab in background), try injecting after delay
-            setTimeout(() => {
-              if (batchPdTabToSfTab.has(pdTab.id)) {
-                injectBatchPdTitleScript(pdTab.id);
-              }
-            }, BATCH_PD_INJECT_DELAY_MS);
+        (async () => {
+          if (sfTab?.id) {
+            const apiResult = await tryFetchPagerDutyViaApi(pdUrl);
+            if (apiResult) {
+              pendingFillBySfTab.set(sfTab.id, {
+                title: apiResult.title,
+                url: pdUrl,
+                targets: apiResult.targets ?? null,
+                mapping: batchSessionMapping,
+                mappingSource: batchSessionMappingSource,
+              });
+              setTimeout(openNextPair, 60);
+              return;
+            }
           }
-          setTimeout(openNextPair, 60);
-        });
+
+          chrome.tabs.create({ url: pdUrl, active: false }, (pdTab) => {
+            if (pdTab?.id) {
+              tabIds.push(pdTab.id);
+              batchPdTabToSfTab.set(pdTab.id, { sfTabId: sfTab?.id, url: pdUrl });
+              setTimeout(() => {
+                if (batchPdTabToSfTab.has(pdTab.id)) {
+                  injectBatchPdTitleScript(pdTab.id);
+                }
+              }, BATCH_PD_INJECT_DELAY_MS);
+            }
+            setTimeout(openNextPair, 60);
+          });
+        })();
       });
     }
     openNextPair();
@@ -508,7 +568,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   if (message.action === "fetchAlertMapping") {
-    fetchRemoteAlertMapping().then((result) => sendResponse(result));
+    resolveAlertMappingForUse().then((result) => sendResponse(result));
     return true;
   }
   if (message.action !== "fetchPagerDutyIncidentTitle") return;
@@ -529,7 +589,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     const mapping = message.skipMappingFetch
       ? resolveAlertMapping(message.mapping)
-      : (await fetchRemoteAlertMapping()).mapping;
+      : (await resolveAlertMappingForUse()).mapping;
+
+    const apiResult = await tryFetchPagerDutyViaApi(url);
+    if (apiResult) {
+      sendResponse({
+        ok: true,
+        title: apiResult.title,
+        targets: apiResult.targets ?? null,
+        mapping,
+      });
+      return;
+    }
 
     chrome.tabs.create({ url, active: false }, (tab) => {
       if (chrome.runtime.lastError) {

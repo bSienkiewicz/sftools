@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { applyIncidentFormDefaults } from "./selectComboboxOption";
 import { applyIncidentLookupDefaults } from "./selectLookupOption";
 import { fillSubjectField, fillDescriptionField } from "./fillSubjectField";
+import { STORAGE_KEYS } from "../../constants/storage";
 import {
   BASE_FORM_DEFAULTS,
   bundledAlertMapping,
@@ -21,18 +22,31 @@ function getMappingVersionInfo(mapping, source) {
 }
 
 async function fetchAlertMappingWithUi() {
-  toast.loading("Fetching alert mapping…", { id: "alert-mapping" });
+  const stored = await chrome.storage.local.get(STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING);
+  const useRemote = stored[STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING] !== false;
+
+  if (useRemote) {
+    toast.loading("Fetching alert mapping…", { id: "alert-mapping" });
+  }
+
   try {
     const result = await new Promise((resolve, reject) => {
       chrome.runtime.sendMessage({ action: "fetchAlertMapping" }, (response) => {
         if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-        else resolve(response ?? { ok: false, mapping: null, source: "bundled" });
+        else resolve(response ?? { ok: false, mapping: bundledAlertMapping, source: "bundled" });
       });
     });
-    const mapping = result.mapping;
-    const source = result.source ?? (result.ok ? "remote" : "bundled");
+    const mapping = result.mapping ?? bundledAlertMapping;
+    const source = result.source ?? "bundled";
     const versionInfo = getMappingVersionInfo(mapping, source);
-    toast.success(result.ok ? versionInfo.label : `${versionInfo.label} (fallback)`, { id: "alert-mapping" });
+
+    if (result.remoteDisabled) {
+      toast.success(`${versionInfo.label} (remote off)`, { id: "alert-mapping" });
+    } else if (result.ok) {
+      toast.success(versionInfo.label, { id: "alert-mapping" });
+    } else {
+      toast.success(`${versionInfo.label} (fallback)`, { id: "alert-mapping" });
+    }
     return { mapping, versionInfo };
   } catch {
     const versionInfo = getMappingVersionInfo(bundledAlertMapping, "bundled");
@@ -411,7 +425,7 @@ export default function NewIncidentGeneratorControls({
       </form>
       {mappingVersionInfo && (
         <div
-          className="slds-text-body_small slds-text-color_weak text-xs"
+          className="slds-text-body_small text-xs p-2 rounded border"
           style={{ marginTop: "2px" }}
         >
           Alert mapping:{" "}
@@ -426,7 +440,7 @@ export default function NewIncidentGeneratorControls({
         </div>
       )}
       {detectedAlert?.rawTitle != null && (
-        <div className="slds-text-body_small slds-text-color_weak text-xs" style={{ marginTop: "4px" }}>
+        <div className="slds-text-body_small text-xs p-2 rounded border" style={{ marginTop: "4px" }}>
           Title: <br/><span className="font-bold">{detectedAlert.rawTitle}</span>
         </div>
       )}

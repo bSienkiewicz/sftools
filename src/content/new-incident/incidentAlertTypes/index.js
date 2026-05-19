@@ -9,7 +9,6 @@ import bundledAlertMapping from "./alert-mapping.json" with { type: "json" };
 import { extractQuotedPart, getPrefixFromRaw, normalizeForMatching, sentenceCase } from "./parse.js";
 import { buildExtractFn, isValidExtractConfig } from "./extractFromConfig.js";
 
-export { extractQuotedPart, getPrefixFromRaw, sentenceCase } from "./parse.js";
 export { bundledAlertMapping };
 export const BASE_FORM_DEFAULTS = bundledAlertMapping.baseFormDefaults;
 export const INCIDENT_LOOKUP_DEFAULTS = bundledAlertMapping.incidentLookupDefaults;
@@ -46,7 +45,7 @@ function buildClassify(rule) {
   };
 }
 
-export function validateMapping(mapping) {
+function validateMapping(mapping) {
   if (!mapping || typeof mapping.version !== "number" || !Array.isArray(mapping.alertTypes)) {
     return false;
   }

@@ -1,11 +1,4 @@
-import {
-  ArrowLeft,
-  CircleHelp,
-  FileQuestion,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, CircleHelp } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { STORAGE_KEYS } from "../constants/storage";
 
@@ -18,6 +11,9 @@ const SettingsModal = ({ onClose }) => {
   const [showTextExpansionAlias, setShowTextExpansionAlias] = useState(false);
   const [quickSendToggle, setQuickSendToggle] = useState(false);
   const [newIncidentHelperToggle, setNewIncidentHelperToggle] = useState(false);
+  const [useRemoteAlertMapping, setUseRemoteAlertMapping] = useState(true);
+  const [usePdApi, setUsePdApi] = useState(false);
+  const [pdApiToken, setPdApiToken] = useState("");
   const [autoClosePdPages, setAutoClosePdPages] = useState(false);
   const [batchTabGrouping, setBatchTabGrouping] = useState(false);
   const [antiIdleToggle, setAntiIdleToggle] = useState(false);
@@ -31,6 +27,9 @@ const SettingsModal = ({ onClose }) => {
       STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS,
       STORAGE_KEYS.QUICK_SEND_TOGGLE,
       STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE,
+      STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING,
+      STORAGE_KEYS.USE_PD_API,
+      STORAGE_KEYS.PD_API_TOKEN,
       STORAGE_KEYS.AUTO_CLOSE_PD_PAGES,
       STORAGE_KEYS.BATCH_TAB_GROUPING,
       STORAGE_KEYS.ANTI_IDLE_TOGGLE,
@@ -43,6 +42,9 @@ const SettingsModal = ({ onClose }) => {
       setShowTextExpansionAlias(data[STORAGE_KEYS.SHOW_TEXT_EXPANSION_ALIAS] !== false);
       setQuickSendToggle(data[STORAGE_KEYS.QUICK_SEND_TOGGLE]);
       setNewIncidentHelperToggle(data[STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE] === true);
+      setUseRemoteAlertMapping(data[STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING] !== false);
+      setUsePdApi(data[STORAGE_KEYS.USE_PD_API] === true);
+      setPdApiToken(data[STORAGE_KEYS.PD_API_TOKEN] ?? "");
       setAutoClosePdPages(data[STORAGE_KEYS.AUTO_CLOSE_PD_PAGES] === true);
       setBatchTabGrouping(data[STORAGE_KEYS.BATCH_TAB_GROUPING] === true);
       setAntiIdleToggle(data[STORAGE_KEYS.ANTI_IDLE_TOGGLE] === true);
@@ -86,6 +88,21 @@ const SettingsModal = ({ onClose }) => {
   const handleNewIncidentHelperToggleChange = (event) => {
     setNewIncidentHelperToggle(event.target.checked);
     chrome.storage.local.set({ [STORAGE_KEYS.NEW_INCIDENT_HELPER_TOGGLE]: event.target.checked });
+  };
+
+  const handleUseRemoteAlertMappingChange = (event) => {
+    setUseRemoteAlertMapping(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.USE_REMOTE_ALERT_MAPPING]: event.target.checked });
+  };
+
+  const handleUsePdApiChange = (event) => {
+    setUsePdApi(event.target.checked);
+    chrome.storage.local.set({ [STORAGE_KEYS.USE_PD_API]: event.target.checked });
+  };
+
+  const handlePdApiTokenChange = (event) => {
+    setPdApiToken(event.target.value);
+    chrome.storage.local.set({ [STORAGE_KEYS.PD_API_TOKEN]: event.target.value });
   };
 
   const handleAutoClosePdPagesChange = (event) => {
@@ -217,7 +234,7 @@ const SettingsModal = ({ onClose }) => {
         </div>
 
         <hr className="w-full" />
-        <h2 className="text-sm font-light tracking-wide self-start flex items-center gap-2">New Incident Builder <span style={{ fontSize: "8px"}} className="text-xs text-white bg-amber-700 px-2 rounded-full">Experimental</span></h2>
+        <h2 className="text-sm font-light tracking-wide self-start">New Incident Builder</h2>
 
         <div className="flex gap-4 w-full items-center">
           <input
@@ -239,6 +256,56 @@ const SettingsModal = ({ onClose }) => {
 
         {newIncidentHelperToggle && (
           <>
+            <div className="flex gap-4 w-full items-center">
+              <input
+                type="checkbox"
+                id="useRemoteAlertMapping"
+                checked={useRemoteAlertMapping}
+                onChange={(e) => handleUseRemoteAlertMappingChange(e)}
+                className="form-checkbox"
+              />
+              <label
+                htmlFor="useRemoteAlertMapping"
+                className="select-none flex items-center"
+                title="Fetch the latest alert-mapping.json from GitHub when generating incidents"
+              >
+                Use remote alert mapping
+                <CircleHelp size={12} className="ml-1 cursor-help" />
+              </label>
+            </div>
+            <div className="flex gap-4 w-full items-center">
+              <input
+                type="checkbox"
+                id="usePdApi"
+                checked={usePdApi}
+                onChange={(e) => handleUsePdApiChange(e)}
+                className="form-checkbox"
+              />
+              <label
+                htmlFor="usePdApi"
+                className="select-none flex items-center"
+                title="Fetch incident title and targets from the PagerDuty REST API instead of opening incident pages"
+              >
+                Use PagerDuty API
+                <CircleHelp size={12} className="ml-1 cursor-help" />
+              </label>
+            </div>
+            {usePdApi && (
+              <div className="flex flex-col gap-1 w-full">
+                <label htmlFor="pdApiToken" className="select-none text-xs text-gray-600">
+                  PagerDuty API token
+                </label>
+                <input
+                  id="pdApiToken"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Personal API token"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  value={pdApiToken}
+                  onChange={(e) => handlePdApiTokenChange(e)}
+                />
+              </div>
+            )}
             <div className="flex gap-4 w-full items-center">
               <input
                 type="checkbox"

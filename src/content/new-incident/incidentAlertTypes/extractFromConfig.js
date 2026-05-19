@@ -64,7 +64,7 @@ function resolvePrefix(config, raw, ctx, body) {
 }
 
 /** Normalize legacy/string extract configs to the declarative shape. */
-export function normalizeExtractConfig(extract) {
+function normalizeExtractConfig(extract) {
   if (extract === "default") {
     return { body: "normalizeBodyDefault", prefix: "context" };
   }
@@ -109,7 +109,7 @@ export function isValidExtractConfig(extract) {
   return true;
 }
 
-export function runExtractFromConfig(extract, raw, ctx) {
+function runExtractFromConfig(extract, raw, ctx) {
   const config = normalizeExtractConfig(extract);
   if (!config) return null;
 
